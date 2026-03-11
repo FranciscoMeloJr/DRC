@@ -1,0 +1,5 @@
+criticality,color,label
+CRITICAL,91,Critical Risks
+IMPORTANT,93,Important
+WARNING,96,Warnings
+NOTICE,92,General Notes
