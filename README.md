@@ -1,6 +1,7 @@
 # DRC
 DRC is the parser for DG 8/Infinispan yamls aka CR/CRD - the name comes from there.
 Usage:::
+~~~
 $ python advisor_ui.py test/expose.yaml 
 =================================================================
 RESOURCE: example-infinispan (Infinispan)
@@ -29,3 +30,4 @@ FINAL SUMMARY - 2026-03-11 02:09:45
   Warnings:              1
   General Notes:         0
 =================================================================
+~~~
