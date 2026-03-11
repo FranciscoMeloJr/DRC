@@ -1,0 +1,26 @@
+id,criticality,reference
+single_node_risk,CRITICAL,there is only one pod in this cluster.
+quorum_risk,CRITICAL,KCS 6955511: Quorum requirements and even-node split-brain risk.
+ha_risk,IMPORTANT,the pods could be deployed in the same hosts
+bidirectional_disabled,IMPORTANT,KCS 6973004: spec.configListener is missing. Bidirectional replication is disabled.
+cl_debug,NOTICE,ConfigListener DEBUG logging is active (small performance Impact).
+cache_type,WARNING,KCS 6972352: Service type 'Cache' is deprecated (Author: fdemeloj).
+jmx_enabled,NOTICE,JMX Exposer: Enabled. Ensure appropriate security measures are in place.
+cloudevents_deprecated,WARNING,DEPRECATED: cloudEvents used. This feature is scheduled for removal.
+autoscale_invalid,WARNING,AUTOSCALE: Useless for DataGrid service types.
+jvm_opts,NOTICE,Manual: extraJvmOpts detected. These options are tuning the JVM behavior.
+xmx_detected,CRITICAL,-Xmx or -Xms detected in extraJvmOpts. The Operator should manage heap sizing.
+g1gc_recommended,NOTICE,Tuning: Heap > 3GB detected. Use -XX:+UseG1GC to optimize garbage collection.
+ephemeral_missing,WARNING,RESOURCE RISK: No ephemeral-storage limit. Logs or local stores could cause node pressure.
+probes_missing,CRITICAL,STABILITY: Custom probes missing. Default settings may cause pods to be killed during state transfer.
+rolling_upgrade_pressure,NOTICE,Upgrade type 'Rolling' can cause state transfer pressure in large clusters.
+mem_limit,WARNING,KCS 6962451: Memory sizing and JVM overhead for Data Grid.
+cpu_limit,WARNING,KCS 7012354: CPU starvation impacts on JGroups/Clustering.
+qos_risk,CRITICAL,KCS 6991230: QoS Best-Effort risk - Pod is prioritized for eviction.
+qos_risk,CRITICAL,KCS 6991230: Burstable QoS detected (Limits != Requests). Risk of CPU throttling and JGroups timeouts.
+qos_kcs,CRITICAL,KCS 6991230: Best-Effort QoS (Host Bound). Pod is prioritized for eviction during node pressure.
+eviction_missing,WARNING,KCS 6954312: Cache lacks eviction/max-size. Risk of OOM on the JVM.
+expose_type,WARNING,KCS 6993061: External access configuration via Route (using Service).
+encryption_info,WARNING,KCS 7017543: Details on configuring and verifying Data Grid encryption types.
+version_old,WARNING,KCS 7031245: Operand version < 8.4 detected. 8.4.x is required for cgroups v2 and stability fixes. Otherwise heap will be 25%.
+monitoring_missing,IMPORTANT,Monitoring: Prometheus scrape labels or annotations are missing. Cluster metrics will not be collected.
