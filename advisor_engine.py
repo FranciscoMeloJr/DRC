@@ -2,41 +2,43 @@ import yaml, re, csv, os
 import advisor_rules as rules
 
 class InfinispanDRCAdvisor:
-    def __init__(self): # <--- Standardized double underscores
+    def __init__(self):
         self.data = None
         self.kcs_db = {}
         self._load_kcs()
 
     def _load_kcs(self):
-        """Loads the KCS database into a lookup dictionary."""
         csv_path = os.path.join("kcs", "kcs_database.csv")
         if os.path.exists(csv_path):
             with open(csv_path, mode='r', encoding='utf-8-sig') as f:
                 reader = csv.DictReader(f)
                 reader.fieldnames = [n.strip() for n in reader.fieldnames]
                 for row in reader:
-                    self.kcs_db[row['id'].strip()] = {
-                        'crit': row['criticality'].strip(),
-                        'ref': row['reference'].strip()
-                    }
+                    if row.get('id'):
+                        self.kcs_db[row['id'].strip()] = {
+                            'crit': row.get('criticality', 'NOTICE').strip(),
+                            'ref': row.get('reference', '').strip()
+                        }
 
     def load_content(self, yaml_content):
-        """Safely parses the input YAML."""
         self.data = yaml.safe_load(yaml_content)
 
     def to_gb(self, size_str):
-        """Converts K8s units (Mi, Gi) to float GB. Returns None if empty."""
-        if not size_str: return None
+        if not size_str: return 0.0
         match = re.match(r"(\d+)([a-zA-Z]+)", str(size_str))
-        if not match: return None
+        if not match: return 0.0
         v, u = float(match.group(1)), match.group(2).lower()
-        return v if u == "gi" else v / 1024
+        if u == "gi": return v
+        if u == "mi": return v / 1024
+        if u == "ki": return v / (1024 * 1024)
+        return v
 
     def analyze(self):
-        """Processes all resources with full metadata extraction and strict QoS logic."""
         results = []
-        items = self.data.get('items', [self.data]) if self.data else []
-
+        if isinstance(self.data, dict) and 'items' in self.data:
+            items = self.data['items']
+        else:
+            items = [self.data] if self.data else []
 
         for item in items:
             if not isinstance(item, dict) or 'spec' not in item: continue
@@ -46,80 +48,49 @@ class InfinispanDRCAdvisor:
             meta = item.get('metadata', {})
             cont = spec.get('container', {})
             res = cont.get('resources', {})
-            limits = res.get('limits', {})
-            reqs = res.get('requests', {})
+            lim = res.get('limits', {})
+            req = res.get('requests', {})
 
-            # 1. Strict Resource Extraction for QoS
-            # Checks both top-level (operator style) and nested (k8s style)
-            cpu_lim = cont.get('cpu') or limits.get('cpu')
-            mem_lim = cont.get('memory') or limits.get('memory')
+            # Extract Resource Values
+            cpu_l = cont.get('cpu') or lim.get('cpu')
+            mem_l = cont.get('memory') or lim.get('memory')
+            cpu_r = req.get('cpu') or cpu_l
+            mem_r = req.get('memory') or mem_l
 
+            # Cgroups v2 / Version Logic
+            ver = str(spec.get('version', '0'))
+            is_old_ver = ver < "8.4.5"
+            heap_ratio = 0.25 if is_old_ver else 0.50
 
-            # K8s defaults requests to limits if limits are set but requests are not
-            cpu_req = reqs.get('cpu') or cont.get('cpu_request') or (cpu_lim if cpu_lim else None)
-            mem_req = reqs.get('memory') or cont.get('memory_request') or (mem_lim if mem_lim else None)
-
-            # 2. QoS and Heap Logic
-            # Guaranteed: Everything defined and Req == Lim
-            # BestEffort: Limits are missing
-            # Burstable: Everything else
-
+            # QoS Determination (Validated Logic)
             qos_id = None
-            if not cpu_lim or not mem_lim:
-                qos_display = "BestEffort (Host Bound)"
-                heap_display = "50% of Host RAM"
-                off_heap_display = "50% of Host RAM"
-                qos_id = "qos_kcs"
-            elif cpu_lim == cpu_req and mem_lim == mem_req:
-                qos_display = "Guaranteed"
-                mem_gb = self.to_gb(mem_lim)
-                heap_display = f"{mem_gb * 0.5:.2f}Gi"
-                off_heap_display = f"{mem_gb * 0.5:.2f}Gi"
+            if not cpu_l or not mem_l:
+                qos, qos_id = "BestEffort (Host Bound)", "qos_kcs"
+                heap_display = f"{int(heap_ratio*100)}% of Host RAM"
+            elif cpu_l == cpu_r and mem_l == mem_r:
+                qos = "Guaranteed"
+                heap_display = f"{self.to_gb(mem_l) * heap_ratio:.2f}Gi"
             else:
-                qos_display = "Burstable"
-                mem_gb = self.to_gb(mem_lim)
-                heap_display = f"{mem_gb * 0.5:.2f}Gi"
-                off_heap_display = f"{mem_gb * 0.5:.2f}Gi"
-                qos_id = "qos_risk"
+                qos, qos_id = "Burstable", "qos_risk"
+                heap_display = f"{self.to_gb(mem_l) * heap_ratio:.2f}Gi"
 
-            # 3. Rule Execution
-            raw_ids = []
-            # Check for unknown fields in the spec
-            unk = rules.check_unknown_fields(spec)
-            if unk: raw_ids.append(unk)
+            # Run the Logical Registry
+            raw_ids = rules.check_full_logic(spec, meta, cont, self.to_gb)
 
 
-            # Run the rule suite (Monitoring, Ephemeral, HA, etc.)
-            raw_ids.extend(rules.check_full_logic(spec, meta, cont, self.to_gb))
-
-
-            # Ensure the specific QoS risk is in findings
             if qos_id and qos_id not in raw_ids:
                 raw_ids.append(qos_id)
 
-            # 4. Metadata and Dependencies
-            service_block = spec.get('service', {})
-            sites_block = service_block.get('sites', {})
-            locations = sites_block.get('locations', [])
-            xsite_names = [loc.get('name') for loc in locations if loc.get('name')]
-
-            # 5. Build Result Dictionary
-            findings_objects = [self.kcs_db.get(fid, {'crit': 'INFO', 'ref': fid}) for fid in raw_ids]
-
             results.append({
                 "name": meta.get('name', 'Unknown'),
+                "namespace": meta.get('namespace', 'default'),
                 "operator": meta.get('labels', {}).get('operator.infinispan.org/version', 'N/A'),
-                "operand": spec.get('version', 'N/A'),
+                "operand": ver,
                 "replicas": spec.get('replicas', 0),
                 "exposed": "Yes" if spec.get('expose') else "No",
                 "encryption": spec.get('security', {}).get('endpointEncryption', {}).get('type', 'Disabled'),
-                "qos": qos_display,
-                "heap": heap_display,
-                "off_heap": off_heap_display,
-                "xsite": ", ".join(xsite_names) if xsite_names else "Disabled",
-                "dependencies": spec.get('dependencies', []),
-                "findings": findings_objects
+                "qos": qos,
+                "heap": f"{heap_display} (cgv2 risk)" if is_old_ver else heap_display,
+                "findings": [self.kcs_db.get(fid, {'crit': 'NOTICE', 'ref': fid}) for fid in raw_ids],
             })
-
-
         return results
