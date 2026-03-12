@@ -1,0 +1,184 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  annotations:
+    infinispan.org/monitoring: 'true'
+    infinispan.org/operatorPodTargetLabels: 'rht.comp,rht.comp_ver,rht.prod_name,rht.prod_ver,rht.subcomp_t'
+  name: example
+  managedFields:
+    - apiVersion: infinispan.org/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:metadata':
+          'f:annotations':
+            'f:infinispan.org/monitoring': {}
+            'f:infinispan.org/operatorPodTargetLabels': {}
+          'f:labels':
+            'f:rht.comp': {}
+            'f:rht.comp_ver': {}
+            'f:rht.prod_name': {}
+            'f:rht.prod_ver': {}
+            'f:rht.subcomp_t': {}
+      manager: infinispan-operator
+      operation: Update
+      time: '2025-12-11T16:59:46Z'
+    - apiVersion: infinispan.org/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:metadata':
+          'f:annotations':
+            .: {}
+            'f:kubectl.kubernetes.io/last-applied-configuration': {}
+          'f:labels':
+            .: {}
+            'f:app.kubernetes.io/instance': {}
+        'f:spec':
+          .: {}
+          'f:container':
+            .: {}
+            'f:memory': {}
+          'f:replicas': {}
+          'f:scheduling':
+            'f:affinity':
+              'f:nodeAffinity':
+                .: {}
+                'f:requiredDuringSchedulingIgnoredDuringExecution': {}
+            'f:tolerations': {}
+          'f:security':
+            .: {}
+            'f:endpointAuthentication': {}
+            'f:endpointEncryption':
+              .: {}
+              'f:certSecretName': {}
+              'f:type': {}
+            'f:endpointSecretName': {}
+          'f:service':
+            .: {}
+            'f:container':
+              .: {}
+              'f:storage': {}
+            'f:type': {}
+          'f:upgrades':
+            'f:type': {}
+          'f:version': {}
+      manager: argocd-controller
+      operation: Update
+      time: '2025-12-18T15:17:24Z'
+    - apiVersion: infinispan.org/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:status':
+          .: {}
+          'f:conditions': {}
+          'f:operand':
+            .: {}
+            'f:image': {}
+            'f:phase': {}
+            'f:version': {}
+          'f:operator':
+            .: {}
+            'f:pod': {}
+          'f:podStatus':
+            .: {}
+            'f:ready': {}
+          'f:replicas': {}
+          'f:selector': {}
+          'f:statefulSetName': {}
+      manager: infinispan-operator
+      operation: Update
+      subresource: status
+      time: '2026-03-09T16:08:20Z'
+  namespace: example-dg
+  labels:
+    app.kubernetes.io/instance: example-datagrid-infinispan-application
+    rht.comp: Data_Grid
+    rht.comp_ver: 8.5.5
+    rht.prod_name: Red_Hat_Runtimes
+    rht.prod_ver: 2025-Q3
+    rht.subcomp_t: application
+spec:
+  security:
+    endpointAuthentication: true
+    endpointEncryption:
+      certSecretName: example-wildcard-certificate
+      clientCert: None
+      type: Secret
+    endpointSecretName: example--connect-data-grid
+  container:
+    memory: 10Gi
+  scheduling:
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: node-role.kubernetes.io/integration
+                  operator: Exists
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: infinispan-pod
+                  clusterName: example-data-grid-cluster
+                  infinispan_cr: example-data-grid-cluster
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+    tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/integration
+        operator: Exists
+  service:
+    container:
+      livenessProbe:
+        failureThreshold: 5
+        initialDelaySeconds: 0
+        periodSeconds: 10
+        successThreshold: 1
+        timeoutSeconds: 1
+      readinessProbe:
+        failureThreshold: 5
+        initialDelaySeconds: 0
+        periodSeconds: 10
+        successThreshold: 1
+        timeoutSeconds: 1
+      startupProbe:
+        failureThreshold: 600
+        initialDelaySeconds: 3
+        periodSeconds: 1
+        successThreshold: 1
+        timeoutSeconds: 1
+      storage: 10Gi
+    type: DataGrid
+  jmx: {}
+  configListener:
+    enabled: true
+    logging:
+      level: info
+  upgrades:
+    type: HotRodRolling
+  version: 8.5.5-1
+  replicas: 3
+status:
+  conditions:
+    - status: 'True'
+      type: PreliminaryChecksPassed
+    - message: 'View: example--data-grid-cluster-1-0-13356,example-data-grid-cluster-1-1-53646,example--data-grid-cluster-1-2-40466'
+      status: 'True'
+      type: WellFormed
+    - status: 'True'
+      type: TLSSecretValid
+  operand:
+    image: 'registry.redhat.io/datagrid/datagrid-8-rhel9@sha256:a711c50e489995fb60e5dec23ce286360743feda5066e4a0861d448aa4f2e903'
+    phase: Running
+    version: 8.5.5-1
+  operator:
+    pod: infinispan-operator-controller-manager-75bb8599c4-8fdvh
+  podStatus:
+    ready:
+      - example-data-grid-cluster-1-0
+      - example-data-grid-cluster-1-1
+      - example-data-grid-cluster-1-2
+  replicas: 3
+  selector: 'app=infinispan-pod,app.kubernetes.io/created-by=example--data-grid-cluster,clusterName=example--data-grid-cluster,infinispan_cr=example--data-grid-cluster'
+  statefulSetName: example-data-grid-cluster-1

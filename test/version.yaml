@@ -1,0 +1,15 @@
+apiVersion: infraspan.org/v1
+kind: Infinispan
+metadata:
+  name: legacy-cluster
+spec:
+  version: "8.3.0"  # <--- THIS IS THE OPERAND VERSION
+  replicas: 3
+  container:
+    resources:
+      limits:
+        memory: "4Gi"
+        cpu: "2"
+      requests:
+        memory: "4Gi"
+        cpu: "2"
