@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Infinispan DRC</title>
+    <script src=""></script>
+</head>
+<body class="bg-gray-100">
+        <div class="bg-blue-600 text-white p-4 shadow">
+        <span id="status-tag" class="font-bold">READY</span>
+    </div>
+
+    <div class="p-10">
+                <div id="drop-zone" style="height: 300px; border: 5px dashed #ccc; display: flex; align-items: center; justify-content: center; background: white; cursor: pointer;">
+            <h2 class="text-xl text-gray-400">DROP FILE HERE</h2>
+            <input type="file" id="file-input" style="display: none;">
+        </div>
+
+                <div id="dashboard" style="display: none;" class="mt-10">
+            <div id="cluster-list" class="space-y-4"></div>
+        </div>
+    </div>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>
