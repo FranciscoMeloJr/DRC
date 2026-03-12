@@ -4,7 +4,7 @@ quorum_risk,CRITICAL,KCS 6955511: Quorum requirements and even-node split-brain 
 ha_risk,IMPORTANT,the pods could be deployed in the same hosts
 bidirectional_disabled,IMPORTANT,KCS 6973004: spec.configListener is missing. Bidirectional replication is disabled.
 cl_debug,NOTICE,ConfigListener DEBUG logging is active (small performance Impact).
-cache_type,WARNING,KCS 6972352: Service type 'Cache' is deprecated (Author: fdemeloj).
+cache_type,WARNING,KCS 6972352: Service type 'Cache' is deprecated.
 jmx_enabled,NOTICE,JMX Exposer: Enabled. Ensure appropriate security measures are in place.
 cloudevents_deprecated,WARNING,DEPRECATED: cloudEvents used. This feature is scheduled for removal.
 autoscale_invalid,WARNING,AUTOSCALE: Useless for DataGrid service types.
@@ -12,11 +12,10 @@ jvm_opts,NOTICE,Manual: extraJvmOpts detected. These options are tuning the JVM 
 xmx_detected,CRITICAL,-Xmx or -Xms detected in extraJvmOpts. The Operator should manage heap sizing.
 g1gc_recommended,NOTICE,Tuning: Heap > 3GB detected. Use -XX:+UseG1GC to optimize garbage collection.
 ephemeral_missing,WARNING,RESOURCE RISK: No ephemeral-storage limit. Logs or local stores could cause node pressure.
-probes_missing,CRITICAL,STABILITY: Custom probes missing. Default settings may cause pods to be killed during state transfer.
+probes_missing,WARNING,STABILITY: Custom probes missing. Default settings may cause pods to be killed during state transfer.
 rolling_upgrade_pressure,NOTICE,Upgrade type 'Rolling' can cause state transfer pressure in large clusters.
 mem_limit,WARNING,KCS 6962451: Memory sizing and JVM overhead for Data Grid.
 cpu_limit,WARNING,KCS 7012354: CPU starvation impacts on JGroups/Clustering.
-qos_risk,CRITICAL,KCS 6991230: QoS Best-Effort risk - Pod is prioritized for eviction.
 qos_risk,CRITICAL,KCS 6991230: Burstable QoS detected (Limits != Requests). Risk of CPU throttling and JGroups timeouts.
 qos_kcs,CRITICAL,KCS 6991230: Best-Effort QoS (Host Bound). Pod is prioritized for eviction during node pressure.
 eviction_missing,WARNING,KCS 6954312: Cache lacks eviction/max-size. Risk of OOM on the JVM.
@@ -24,3 +23,13 @@ expose_type,WARNING,KCS 6993061: External access configuration via Route (using 
 encryption_info,WARNING,KCS 7017543: Details on configuring and verifying Data Grid encryption types.
 version_old,WARNING,KCS 7031245: Operand version < 8.4 detected. 8.4.x is required for cgroups v2 and stability fixes. Otherwise heap will be 25%.
 monitoring_missing,IMPORTANT,Monitoring: Prometheus scrape labels or annotations are missing. Cluster metrics will not be collected.
+prod_resources_missing,CRITICAL,Production environment requires explicit CPU and Memory limits (Guaranteed QoS).
+low_resources,IMPORTANT,Resources too low: 1 CPU or <2GB RAM is not recommended for production clusters.
+cgv2_risk,IMPORTANT,Version < 8.4.5 detected. On cgroups v2 (OCP 4.12+), default heap will be limited to 25% of memory instead of 50%.
+xsite_gossip_risk,CRITICAL,KCS 7021134: Cross-site replication requires 'relay-node' or 'GossipRouter' configuration.
+fips_requirement,IMPORTANT,"FIPS Mode: Host is FIPS-enabled. To disable at DG level, use -Dcom.redhat.fips=false in extraJvmOpts. KCS: 6907521 
+affinity_soft,WARNING,Availability: podAntiAffinity is set to 'preferred' (soft). Pods may co-locate if node resources are tight.
+affinity_hard,NOTICE,Best Practice: podAntiAffinity is set to 'required' (hard). Ensures max availability.
+qos_mismatch,CRITICAL,KCS 6991230: Memory Limits set without Requests. Guaranteed QoS is strongly recommended for production stability.
+logging_perf,WARNING,Performance Risk: DEBUG/TRACE logging is enabled. This significantly increases disk I/O and latency.
+affinity_weak,IMPORTANT,Availability Risk: Using 'Preferred' anti-affinity. In a busy cluster, pods may colocate on the same node.
