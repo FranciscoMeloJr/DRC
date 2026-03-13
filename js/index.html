@@ -2,32 +2,62 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DRC WebVersion</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
     <div class="container">
         <header class="header">
-            <span style="font-weight: 800;">DRC WEBVERSION</span>
-            <a href="https://github.com/FranciscoMeloJr/DRC/tree/2026-revamp-version/js" target="_blank" class="source-link">Source Git</a>
+            <span style="font-weight: 800; letter-spacing: 1px;">DRC WEBVERSION</span>
+            <a href="https://github.com/FranciscoMeloJr/DRC/tree/2026-revamp-version/" target="_blank" class="source-link">Source Git</a>
         </header>
 
         <section class="helper-box">
-            <strong>Analysis Helper:</strong> Identify Disaster Recovery risks.
+            <strong>Analysis Helper:</strong> Identify Disaster Recovery risks in your cluster configuration.
         </section>
 
         <div id="drop-zone">
-            <span style="font-size: 32px;">📤</span>
-            <button id="upload-btn">SELECT CLUSTER FILE</button>
-            <span style="color: #94a3b8; font-size: 11px; margin-top: 10px;">or drop file here</span>
+            <span style="font-size: 32px; margin-bottom: 10px;">📤</span>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 10px;">
+                <button id="upload-btn">SELECT CLUSTER FILE</button>
+                <button id="rules-btn" style="background: #4e4e6a; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 12px;">VIEW RULES</button>
+            </div>
+            <span style="color: #94a3b8; font-size: 11px; margin-top: 10px; font-weight: bold; text-transform: uppercase;">or drop file here</span>
             <input type="file" id="file-input" style="display: none;">
         </div>
 
-        <main id="dashboard" style="display: none;">
-            <h2 id="cluster-name" style="font-size: 14px; color: #94a3b8;">Analysis Results</h2>
+                <div id="rules-section" style="display: none; background: #16213e; border: 1px solid #4e4e6a; border-radius: 8px; padding: 20px; margin: 20px auto; max-width: 800px;">
+            <h3 style="color: #e60000; font-size: 14px; text-transform: uppercase; margin-bottom: 15px;">Active DRC Rules</h3>
+            <ul id="rules-list" style="color: #94a3b8; font-size: 13px; line-height: 1.8; text-align: left; list-style-type: square; padding-left: 20px;">
+                <li><strong>HA Risk:</strong> Triggers if replicas < 2.</li>
+                <li><strong>Resource Constraints:</strong> Detects missing CPU/Memory limits.</li>
+                <li><strong>Encryption:</strong> Checks for disabled Data Grid encryption.</li>
+                <li><strong>Monitoring:</strong> Validates Prometheus scraping annotations.</li>
+                <li><strong>Storage:</strong> Checks for Ephemeral vs Persistent storage risks.</li>
+                <li><strong>Probes:</strong> Identifies missing Liveness/Readiness probes.</li>
+            </ul>
+        </div>
+
+                <main id="dashboard" style="display: none;">
+            <h2 id="cluster-name" style="font-size: 15px; color: #94a3b8; font-weight: 800; text-transform: uppercase; margin-bottom: 20px;">Analysis Summary</h2>
             <div id="cluster-list"></div>
+
+
+            <div id="raw-section" style="margin-top: 40px;">
+
+                <h3 style="color: #94a3b8; font-size: 11px; margin-bottom: 10px; text-transform: uppercase; font-weight: 800;">Raw Detailed Data</h3>
+
+                <pre id="raw-display" style="background: #0f172a; color: #4ade80; padding: 20px; border-radius: 8px; font-family: monospace; font-size: 12px; overflow-x: auto; border: 1px solid #1e293b; line-height: 1.5;"></pre>
+
+            </div>
+
         </main>
+
     </div>
+
+
     <script src="dashboard.js"></script>
 </body>
 </html>

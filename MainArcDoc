@@ -1,0 +1,27 @@
+### DRC
+
+What it does? Rule base analysis for the Infinispan CR. 
+Where as the rules? rules.csv
+How it does? Advisor engine runs, gets the Advisor rules, and reads from the CSV rules based.
+How to run it? 
+	Command based line, via python advisor.py /path/file.yaml
+    Deploy web via python  python js/bridge_server.py - access via localhost:8080/1.
+
+Where is the source?  https://github.com/FranciscoMeloJr/DRC/tree/2026-revamp-version
+ 
+Is it contanirized? Yes, via Dockerfile in /container. Image located in https://quay.io/repository/fdemeloj1/drc-advisor
+
+
+[Web-based bridge_server.py] -> advisor_engine -> rules
+[advisor_ui] -> [advisor_engine] -> [rules]
+
+Pipeline:
+	Edit: 
+		$ change the file
+	Build: 
+		$ podman build  -f container/Dockerfile . --tag drc-advisor:v2
+	Push: 
+		$ podman push localhost/drc-advisor:v2 quay.io/fdemeloj1/drc-advisor:v2
+	Deploy: 
+		$ change the deployment yaml
+		$ podman run --rm -it --memory=1000m -e GC_MAX_METASPACE_SIZE=1024 -e GC_METASPACE_SIZE=200 -p 8080:8080 --rm -it localhost/advisor:latest

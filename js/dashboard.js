@@ -1,52 +1,63 @@
 window.onload = function() {
     const uploadBtn = document.getElementById('upload-btn');
+    const rulesBtn = document.getElementById('rules-btn');
+    const rulesSection = document.getElementById('rules-section');
     const fileInput = document.getElementById('file-input');
     const dropZone = document.getElementById('drop-zone');
     const dashboard = document.getElementById('dashboard');
     const clusterList = document.getElementById('cluster-list');
+    const rawDisplay = document.getElementById('raw-display');
 
-    // 1. Setup the Raw Data Display (The Bottom section)
-    let rawDisplay = document.getElementById('raw-display');
-    if (!rawDisplay) {
-        const rawContainer = document.createElement('div');
-        rawContainer.style.marginTop = '40px';
-        rawContainer.innerHTML = `            <h3 style="color: #94a3b8; font-size: 11px; margin-bottom: 10px; text-transform: uppercase; font-weight: 800;">Raw Data From Bridge:</h3>             <pre id="raw-display" style="background: #0f172a; color: #4ade80; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 12px; overflow-x: auto; border: 1px solid #1e293b; line-height: 1.5;"></pre>        `;
-        dashboard.appendChild(rawContainer);
-        rawDisplay = document.getElementById('raw-display');
-    }
+    // --- 1. View Rules Toggle ---
+    rulesBtn.onclick = () => {
+        const isHidden = rulesSection.style.display === 'none';
+        rulesSection.style.display = isHidden ? 'block' : 'none';
+        rulesBtn.innerText = isHidden ? 'HIDE RULES' : 'VIEW RULES';
+        if (isHidden) rulesSection.scrollIntoView({ behavior: 'smooth' });
+    };
 
-    // 2. Interaction Logic
+    // --- 2. Interaction Handlers ---
     uploadBtn.onclick = (e) => { e.stopPropagation(); fileInput.click(); };
     dropZone.onclick = () => fileInput.click();
     fileInput.onchange = (e) => { if (e.target.files[0]) handleFile(e.target.files[0]); };
 
-    dropZone.ondragover = (e) => e.preventDefault();
+    dropZone.ondragover = (e) => { e.preventDefault(); dropZone.style.borderColor = "#e60000"; };
+    dropZone.ondragleave = () => { dropZone.style.borderColor = "#4e4e6a"; };
     dropZone.ondrop = (e) => {
         e.preventDefault();
+        dropZone.style.borderColor = "#4e4e6a";
         if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
     };
 
-    // 3. The API Call (Binary Stream to fix the ScannerError)
+    // --- 3. The API Call (Binary Stream) ---
     async function handleFile(file) {
+        rulesSection.style.display = 'none'; // Hide rules when analyzing
+        rulesBtn.innerText = 'VIEW RULES';
+
         try {
             const response = await fetch('/analyze', {
                 method: 'POST',
-                body: file, // Send binary directly - no FormData wrapper
+                body: file, // Send binary directly to bypass Python Multipart ScannerError
                 headers: { 'Content-Type': 'application/yaml' }
             });
+
+            if (!response.ok) throw new Error("Server Error");
+
+
             const data = await response.json();
             renderDashboard(data);
         } catch (err) {
-            console.error("Connection failed:", err);
+            console.error("DRC Error:", err);
+            alert("Analysis failed. Ensure bridge_server.py is running.");
         }
     }
 
-    // 4. UI Rendering (Summary TOP, Raw BOTTOM)
+    // --- 4. UI Rendering (Summary Top, Raw Bottom) ---
     function renderDashboard(data) {
         dashboard.style.display = 'block';
         clusterList.innerHTML = '';
 
-        // TOP: Summary Cards
+        // TOP: Summary Notice Cards
         if (data.results && Array.isArray(data.results)) {
             data.results.forEach(res => {
                 if (res.findings && Array.isArray(res.findings)) {
@@ -57,8 +68,11 @@ window.onload = function() {
 
                         const dot = document.createElement('div');
                         dot.className = 'dot';
-                        if (f.crit === 'CRITICAL'  || f.ref.includes('risk')) {
+                        // Set Red dot for Critical/Risks
+                        if (f.crit === 'CRITICAL' || f.ref.toLowerCase().includes('risk')) {
                             dot.style.background = '#e60000';
+                        } else {
+                            dot.style.background = '#ff8c00'; // Orange for others
                         }
 
                         const text = document.createElement('div');
@@ -74,8 +88,10 @@ window.onload = function() {
             });
         }
 
-        // BOTTOM: Raw JSON
+        // BOTTOM: Raw Detailed Output
         rawDisplay.textContent = JSON.stringify(data, null, 2);
+
+
         dashboard.scrollIntoView({ behavior: 'smooth' });
     }
 };
