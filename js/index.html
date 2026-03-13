@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DRC WebVersion</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <span style="font-weight: 800;">DRC WEBVERSION</span>
+            <a href="https://github.com/FranciscoMeloJr/DRC/tree/2026-revamp-version/js" target="_blank" class="source-link">Source Git</a>
+        </header>
+
+        <section class="helper-box">
+            <strong>Analysis Helper:</strong> Identify Disaster Recovery risks.
+        </section>
+
+        <div id="drop-zone">
+            <span style="font-size: 32px;">📤</span>
+            <button id="upload-btn">SELECT CLUSTER FILE</button>
+            <span style="color: #94a3b8; font-size: 11px; margin-top: 10px;">or drop file here</span>
+            <input type="file" id="file-input" style="display: none;">
+        </div>
+
+        <main id="dashboard" style="display: none;">
+            <h2 id="cluster-name" style="font-size: 14px; color: #94a3b8;">Analysis Results</h2>
+            <div id="cluster-list"></div>
+        </main>
+    </div>
+    <script src="dashboard.js"></script>
+</body>
+</html>
