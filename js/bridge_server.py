@@ -4,23 +4,57 @@ import json
 import os
 import sys
 
+# --- DEBUG INSTRUMENTATION ---
+print("--- CONTAINER PATH DEBUG ---")
+print(f"Current Working Directory (CWD): {os.getcwd()}")
+print(f"Script File (file): {__file__}")
+
+# Calculate the paths
+base_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.abspath(os.path.join(base_dir, '..'))
+
+print(f"Calculated Base Dir: {base_dir}")
+print(f"Calculated Parent Dir (..): {parent_dir}")
+
+if os.path.exists(parent_dir):
+    print(f"Parent Directory Contents: {os.listdir(parent_dir)}")
+else:
+    print("CRITICAL: Parent Directory does not exist!")
+
+target_file = os.path.join(parent_dir, 'advisor_engine.py')
+print(f"Checking for file: {target_file}")
+print(f"File exists?: {os.path.exists(target_file)}")
+print("--- END DEBUG ---\n")
+# --- END DEBUG ---
+
+
 # Add the parent directory to the path so we can import the engine
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+#try:
+#    from advisor_engine import InfinispanDRCAdvisor
+#except ImportError:
+#    print("Error: advisor_engine.py not found in the parent directory.")
+#    sys.exit(1)
+
+# Updated try/except for bridge_server.py
 try:
     from advisor_engine import InfinispanDRCAdvisor
-except ImportError:
-    print("Error: advisor_engine.py not found in the parent directory.")
+    print("SUCCESS: advisor_engine imported.")
+except ImportError as e:
+    print(f"--- REAL IMPORT ERROR: {e} ---")
+    import traceback
+    traceback.print_exc()
     sys.exit(1)
 
-PORT = 8081
+
+PORT = 8080
 
 class BridgeHandler(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
         if self.path == '/analyze':
             content_length = int(self.headers['Content-Length'])
             yaml_data = self.rfile.read(content_length).decode('utf-8')
-
 
             # Run the Python Engine
             engine = InfinispanDRCAdvisor()
@@ -49,7 +83,8 @@ class BridgeHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps(response_data).encode())
         else:
-            super().do_POST()
+            # Instead of calling super(), we send a proper 404 error
+            self.send_error(404, "Endpoint not found")
 
     def translate_path(self, path):
         # Ensure the server looks for files inside the /js directory
