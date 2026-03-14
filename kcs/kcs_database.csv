@@ -24,12 +24,13 @@ encryption_info,WARNING,KCS 7017543: Details on configuring and verifying Data G
 version_old,WARNING,KCS 7031245: Operand version < 8.4 detected. 8.4.x is required for cgroups v2 and stability fixes. Otherwise heap will be 25%.
 monitoring_missing,IMPORTANT,Monitoring: Prometheus scrape labels or annotations are missing. Cluster metrics will not be collected.
 prod_resources_missing,CRITICAL,Production environment requires explicit CPU and Memory limits (Guaranteed QoS).
-low_resources,IMPORTANT,Resources too low: 1 CPU or <2GB RAM is not recommended for production clusters.
+low_resources,IMPORTANT,Resources too low: 1 CPU and <2GB RAM is not recommended for production clusters.
 cgv2_risk,IMPORTANT,Version < 8.4.5 detected. On cgroups v2 (OCP 4.12+), default heap will be limited to 25% of memory instead of 50%.
 xsite_gossip_risk,CRITICAL,KCS 7021134: Cross-site replication requires 'relay-node' or 'GossipRouter' configuration.
-fips_requirement,IMPORTANT,"FIPS Mode: Host is FIPS-enabled. To disable at DG level, use -Dcom.redhat.fips=false in extraJvmOpts. KCS: 6907521 
+fips_requirement,IMPORTANT,FIPS Mode: Host is FIPS-enabled. To disable at DG level, use -Dcom.redhat.fips=false in extraJvmOpts. KCS: 6907521
 affinity_soft,WARNING,Availability: podAntiAffinity is set to 'preferred' (soft). Pods may co-locate if node resources are tight.
 affinity_hard,NOTICE,Best Practice: podAntiAffinity is set to 'required' (hard). Ensures max availability.
 qos_mismatch,CRITICAL,KCS 6991230: Memory Limits set without Requests. Guaranteed QoS is strongly recommended for production stability.
 logging_perf,WARNING,Performance Risk: DEBUG/TRACE logging is enabled. This significantly increases disk I/O and latency.
 affinity_weak,IMPORTANT,Availability Risk: Using 'Preferred' anti-affinity. In a busy cluster, pods may colocate on the same node.
+drc_log,NOTICE,KCS 7025319: Set logging to DEBUG to troubleshoot production.
