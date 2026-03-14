@@ -109,5 +109,32 @@ def check_full_logic(spec, meta, container, to_gb):
         if "-Dcom.redhat.fips=false" not in jvm_opts:
             findings.append("fips_requirement")
 
+
+    # 17. Detecting logging
+    logging_conf =  spec.get('logging', {})
+    log_level = logging_conf.get('level', '').upper()
+
+    if log_level not in ['DEBUG', 'TRACE']:
+        findings.append("drc_log")
+
+    # 18. Affinity: hard, soft, weak
+    if "affinity" not in spec.get('scheduling', {}):
+        findings.append("affinity_weak")
+    else:
+        # Detect if it's Soft (preferred) vs Hard (required)
+        affinity_str = str(spec.get('scheduling', {}).get('affinity', ''))
+        if "preferredDuringSchedulingIgnoredDuringExecution" in affinity_str:
+            findings.append("affinity_soft")
+        if "requiredDuringSchedulingIgnoredDuringExecution" in affinity_str:
+            findings.append("affinity_hard")
+
+    # 19. QoS mismatch
+    resources = spec.get('container', {}).get('resources', {})
+    limits = resources.get('limits', {})
+    requests = resources.get('requests', {})
+    
+    if limits != requests or not limits:
+        findings.append("qos_mismatch")
+
     return findings
     

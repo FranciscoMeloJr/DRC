@@ -77,8 +77,7 @@ class InfinispanDRCAdvisor:
             # Run the Logical Registry
             raw_ids = rules.check_full_logic(spec, meta, cont, self.to_gb)
 
-
-            if qos_id and qos_id not in raw_ids:
+            if qos_id not in raw_ids:
                 raw_ids.append(qos_id)
 
             results.append({
