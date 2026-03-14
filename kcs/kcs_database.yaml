@@ -1,0 +1,131 @@
+# DRC Advisor Rules Registry
+# Categorized for dot-notation lookups
+
+cluster:
+  single_node_risk:
+    criticality: CRITICAL
+    reference: "There is only one pod in this cluster."
+  quorum_risk:
+    criticality: CRITICAL
+    reference: "Quorum requirements and even-node split-brain risk."
+    kcs: "KCS 6955511"
+  xsite_gossip_risk:
+    criticality: CRITICAL
+    reference: "KCS 7021134: Cross-site replication requires 'relay-node' or 'GossipRouter' configuration."
+    kcs: "KCS 7021134"
+  bidirectional_disabled:
+    criticality: IMPORTANT
+    reference: "spec.configListener is missing. Bidirectional replication is disabled."
+    kcs: "KCS 6973004"
+  cl_debug:
+    criticality: NOTICE
+    reference: "ConfigListener DEBUG logging is active (small performance Impact)."
+  cache_type:
+    criticality: WARNING
+    reference: "KCS 6972352: Service type 'Cache' is deprecated."
+
+compute:
+  qos_risk:
+    criticality: CRITICAL
+    reference: "Burstable QoS detected (Limits != Requests). Risk of CPU throttling and JGroups timeouts."
+    kcs: "KCS 6991230"
+  qos_kcs:
+    criticality: CRITICAL
+    reference: "Best-Effort QoS (Host Bound). Pod is prioritized for eviction during node pressure."
+    kcs: "KCS 6991230"
+  qos_mismatch:
+    criticality: CRITICAL
+    reference: "Memory Limits set without Requests. Guaranteed QoS is strongly recommended for production stability."
+    kcs: "KCS 6991230"
+  prod_resources_missing:
+    criticality: CRITICAL
+    reference: "Production environment requires explicit CPU and Memory limits (Guaranteed QoS)."
+  low_resources:
+    criticality: IMPORTANT
+    reference: "Resources too low: 1 CPU and <2GB RAM is not recommended for production clusters."
+  cpu_limit:
+    criticality: WARNING
+    reference: "CPU starvation impacts on JGroups/Clustering."
+    kcs: "KCS 7012354"
+  mem_limit:
+    criticality: WARNING
+    reference: "KCS 6962451: Memory sizing and JVM overhead for Data Grid."
+  jvm_opts:
+    criticality: NOTICE
+    reference: "Manual: extraJvmOpts detected. These options are tuning the JVM behavior."
+  xmx_detected:
+    criticality: CRITICAL
+    reference: "-Xmx or -Xms detected in extraJvmOpts. The Operator should manage heap sizing."
+  g1gc_recommended:
+    criticality: NOTICE
+    reference: "Tuning: Heap > 3GB detected. Use -XX:+UseG1GC to optimize garbage collection."
+
+reliability:
+  ha_risk:
+    criticality: IMPORTANT
+    reference: "the pods could be deployed in the same hosts"
+  probes_missing:
+    criticality: WARNING
+    reference: "STABILITY: Custom probes missing. Default settings may cause pods to be killed during state transfer."
+  rolling_upgrade_pressure:
+    criticality: NOTICE
+    reference: "Upgrade type 'Rolling' can cause state transfer pressure in large clusters."
+  affinity:
+    weak:
+      criticality: IMPORTANT
+      reference: "Availability Risk: Using 'Preferred' anti-affinity. In a busy cluster, pods may colocate on the same node."
+    soft:
+      criticality: WARNING
+      reference: "Availability: podAntiAffinity is set to 'preferred' (soft). Pods may co-locate if node resources are tight."
+    hard:
+      criticality: NOTICE
+      reference: "Best Practice: podAntiAffinity is set to 'required' (hard). Ensures max availability."
+
+storage:
+  ephemeral_missing:
+    criticality: WARNING
+    reference: "RESOURCE RISK: No ephemeral-storage limit. Logs or local stores could cause node pressure."
+  eviction_missing:
+    criticality: WARNING
+    reference: "KCS 6954312: Cache lacks eviction/max-size. Risk of OOM on the JVM."
+
+networking:
+  jmx_enabled:
+    criticality: NOTICE
+    reference: "JMX Exposer: Enabled. Ensure appropriate security measures are in place."
+  cloudevents_deprecated:
+    criticality: WARNING
+    reference: "DEPRECATED: cloudEvents used. This feature is scheduled for removal."
+  autoscale_invalid:
+    criticality: WARNING
+    reference: "AUTOSCALE: Useless for DataGrid service types."
+  expose_type:
+    criticality: WARNING
+    reference: "KCS 6993061: External access configuration via Route (using Service)."
+  encryption_info:
+    criticality: WARNING
+    reference: "KCS 7017543: Details on configuring and verifying Data Grid encryption types."
+
+observability:
+  monitoring_missing:
+    criticality: IMPORTANT
+    reference: "Monitoring: Prometheus scrape labels or annotations are missing. Cluster metrics will not be collected."
+  logging_perf:
+    criticality: WARNING
+    reference: "Performance Risk: DEBUG/TRACE logging is enabled. This significantly increases disk I/O and latency."
+  drc_log:
+    criticality: NOTICE
+    reference: "KCS 7025319: Set logging to DEBUG to troubleshoot production."
+
+security:
+  fips_requirement:
+    criticality: IMPORTANT
+    reference: "FIPS Mode: Host is FIPS-enabled. To disable at DG level, use -Dcom.redhat.fips=false in extraJvmOpts. KCS: 6907521"
+
+versioning:
+  version_old:
+    criticality: WARNING
+    reference: "KCS 7031245: Operand version < 8.4 detected. 8.4.x is required for cgroups v2 and stability fixes."
+  cgv2_risk:
+    criticality: IMPORTANT
+    reference: "Version < 8.4.5 detected. On cgroups v2 (OCP 4.12+), default heap will be limited to 25% of memory instead of 50%."
