@@ -47,10 +47,29 @@ except ImportError as e:
     traceback.print_exc()
     sys.exit(1)
 
-PORT = 8081
+PORT = 8080
 
 class BridgeHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
+        # 1. Handle the Logo/Static files (Since they live outside the /js folder)
+        if self.path.startswith('/static/'):
+            try:
+                # Calculate path to the 'static' folder (one level up from /js)
+                base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                file_path = os.path.join(base_path, self.path.lstrip('/'))
+                
+                with open(file_path, 'rb') as f:
+                    self.send_response(200)
+                    # Set the correct header for images
+                    if file_path.endswith(".png"):
+                        self.send_header('Content-Type', 'image/png')
+                    self.end_headers()
+                    self.wfile.write(f.read())
+                return
+            except Exception as e:
+                print(f"Static file error: {e}")
+                self.send_error(404, "Static file not found")
+                return
         # 2. Now 'engine' is defined in the module scope and accessible here
         engine = InfinispanDRCAdvisor()
         if self.path == '/api/rules':

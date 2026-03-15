@@ -8,6 +8,35 @@ window.onload = function() {
     const clusterList = document.getElementById('cluster-list');
     const rawDisplay = document.getElementById('raw-display');
 
+    // About Modal Logic
+    const modal = document.getElementById("aboutModal");
+    const btn = document.getElementById("aboutBtn");
+    const span = document.getElementsByClassName("close")[0];
+
+    //Rules list
+    const rulesModal = document.getElementById("rulesModal");
+    const viewRulesBtn = document.getElementById("viewRulesBtn");
+    const closeRules = document.getElementById("closeRules");
+    const rulesContent = document.getElementById("rulesContent");
+
+    viewRulesBtn.onclick = async () => {
+        rulesModal.style.display = "block";
+        try {
+            const response = await fetch('/api/rules');
+            const data = await response.json();
+            // Displays the JSON rules prettified
+            rulesContent.textContent = JSON.stringify(data, null, 4);
+        } catch (err) {
+            rulesContent.textContent = "Error loading rules from bridge.";
+        }
+    };
+
+    closeRules.onclick = () => rulesModal.style.display = "none";
+
+    btn.onclick = () => modal.style.display = "block";
+    span.onclick = () => modal.style.display = "none";
+    window.onclick = (e) => { if (e.target == modal) modal.style.display = "none"; }
+
     // --- 1. View Rules Toggle ---
     rulesBtn.onclick = () => {
         const isHidden = rulesSection.style.display === 'none';

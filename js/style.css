@@ -15,13 +15,43 @@ body {
 }
 
 .header {
-    background: #ee0000;
-    padding: 12px 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    position: relative;
+    padding: 20px 25px 20px 90px !important; /* Spacing for the big logo */
+    background-color: #c9190b;
+}
+
+/* The BIG Logo */
+.header::before {
+    content: "";
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 60px; /* Big and bold for v2.1 */
+    height: 60px;
+    background-image: url('../static/drc.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+}
+
+/*.about-btn {
+    background: transparent;
+    border: 1px solid white;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: 0.2s;
+} */
+
+.about-btn:hover {
+    background: white;
+    color: #c9190b;
 }
 
 .source-link {
@@ -88,4 +118,111 @@ body {
     flex-shrink: 0;
 }
 
+.dashboard-footer {
+    margin-top: 30px;
+    padding: 20px;
+    border-top: 1px solid #eee;
+    text-align: center;
+    font-size: 0.8rem;
+    color: #666;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.dashboard-footer strong {
+    color: #002f5d;
+}
+
+/* Enhanced Upload Area for v2.1 */
+.upload-section {
+    border: 2px dashed #ccc;
+    transition: all 0.3s ease; /* Smooth color fading */
+}
+
+.upload-section:hover {
+    border-color: #c9190b; /* Charizard Red */
+    background-color: rgba(201, 25, 11, 0.05); /* Very light red tint */
+    transform: translateY(-2px); /* Subtle lift effect */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    cursor: pointer;
+}
+
+/* Force both to look identical */
+.about-btn, 
+.source-link, 
+.secondary-btn, 
+#viewRulesBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    
+    /* Exact same border and sizing */
+    border: 1px solid rgba(255, 255, 255, 0.8) !important;
+    background: transparent;
+    color: white !important;
+    
+    /* Matching dimensions */
+    padding: 6px 16px !important;
+    height: 32px; /* Fixed height ensures they match perfectly */
+    border-radius: 4px;
+    
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none !important;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-sizing: border-box; /* Ensures padding doesn't grow the button */
+}
+
+/* Identical hover state for both */
+.about-btn:hover, 
+.source-link:hover,
+#viewRulesBtn:hover {
+    background: white !important;
+    color: #c9190b !important;
+    border-color: white !important;
+    transform: translateY(-1px);
+}
+
+/* Specific colors for the YAML Rules button */
+.secondary-btn {
+    background: #4e4e6a;
+    color: white;
+    padding: 10px 15px;
+}
+
+/* The Hover Effect that actually works now */
+.secondary-btn:hover {
+    background-color: #3d3d54; /* Slightly darker purple/blue */
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+/* Console Theme for the Rules Modal */
+#rulesContent {
+    background-color: #0d1117 !important; /* GitHub-style dark grey/black */
+    color: #ffffff !important;           /* Pure white text */
+    padding: 24px;
+    border-radius: 6px;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    text-align: left;
+    white-space: pre-wrap;
+    border: 1px solid #30363d;
+    box-shadow: inset 0 0 12px rgba(0,0,0,0.4);
+    overflow-x: auto;
+}
+
+/* Ensure the modal content container itself doesn't hide the dark background */
+.modal-content {
+    background-color: #ffffff; /* Keep the outer modal white */
+    color: #333;
+}
+
 .card-text { font-weight: 600; font-size: 13px; text-transform: uppercase; }
+
+/* Modal Styling */
+.modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); }
+.modal-content { background: white; margin: 10% auto; padding: 25px; border-radius: 5px; width: 40%; font-family: sans-serif; }
+.close { float: right; cursor: pointer; font-size: 24px; color: #aaa; }
+.close:hover { color: black; }

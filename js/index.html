@@ -5,14 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DRC WebVersion</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/png" href="../static/drc.png">
 </head>
 <body>
 
-    <div class="container">
+      <div class="container">
         <header class="header">
             <span style="font-weight: 800; letter-spacing: 1px;">DRC WEBVERSION</span>
-            <a href="https://github.com/FranciscoMeloJr/DRC/tree/2026-revamp-version/" target="_blank" class="source-link">Source Git</a>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <button id="viewRulesBtn" class="secondary-btn"  class="viewRulesBtn">VIEW RULES LIST</button>
+                <button id="aboutBtn" class="about-btn">About</button>
+                <a href="https://github.com/FranciscoMeloJr/DRC/tree/2026-revamp-version/" target="_blank" class="source-link">Source Git</a>
+            </div>
         </header>
+
+        <div id="aboutModal" class="modal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7);">
+            <div class="modal-content" style="background-color: #fefefe; margin: 10% auto; padding: 30px; border-radius: 8px; width: 50%; max-width: 600px; color: #333; font-family: sans-serif; box-shadow: 0 5px 15px rgba(0,0,0,0.5);">
+                <span class="close" style="float: right; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
+                
+                <h2 style="color: #c9190b; margin-top: 0;">About DRC Advisor</h2>
+                <p>The <strong>Deployment Resource Checker (DRC)</strong> validates Kubernetes and Infinispan manifests against best practices.</p>
+                
+                <div style="background: #f9f9f9; padding: 15px; border-left: 4px solid #c9190b; margin: 20px 0;">
+                    <ul style="margin: 0; padding-left: 20px; line-height: 1.8;">
+                        <li><strong>QoS Analysis:</strong> Detects Burstable/Best-Effort risks.</li>
+                        <li><strong>Memory Check:</strong> Ensures Xmx/Xms consistency.</li>
+                        <li><strong>KCS Alignment:</strong> Maps rules to Red Hat solutions.</li>
+                    </ul>
+                </div>
+                
+                <p style="font-size: 0.8rem; color: #888;">Version 2.1-Stable | Release: 2026</p>
+            </div>
+        </div>
 
         <section class="helper-box">
             <strong>Analysis Helper:</strong> Identify Disaster Recovery risks in your cluster configuration.
@@ -21,15 +45,15 @@
         <div id="drop-zone">
             <span style="font-size: 32px; margin-bottom: 10px;">📤</span>
             <div style="display: flex; gap: 10px; justify-content: center; margin-top: 10px;">
-                <button id="upload-btn">SELECT CLUSTER FILE</button>
-                <button id="rules-btn" style="background: #4e4e6a; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 12px;">VIEW RULES</button>
+                <button id="upload-btn">SELECT CLUSTER YAML FILE</button>
+                <button id="rules-btn" class="secondary-btn">YAML RULES EXAMPLE</button>
             </div>
             <span style="color: #94a3b8; font-size: 11px; margin-top: 10px; font-weight: bold; text-transform: uppercase;">or drop file here</span>
             <input type="file" id="file-input" style="display: none;">
         </div>
 
-                <div id="rules-section" style="display: none; background: #16213e; border: 1px solid #4e4e6a; border-radius: 8px; padding: 20px; margin: 20px auto; max-width: 800px;">
-            <h3 style="color: #e60000; font-size: 14px; text-transform: uppercase; margin-bottom: 15px;">Active DRC Rules</h3>
+        <div id="rules-section" style="display: none; background: #16213e; border: 1px solid #4e4e6a; border-radius: 8px; padding: 20px; margin: 20px auto; max-width: 800px;">
+            <h3 style="color: #e60000; font-size: 14px; text-transform: uppercase; margin-bottom: 15px;">Example Active DRC Rules</h3>
             <ul id="rules-list" style="color: #94a3b8; font-size: 13px; line-height: 1.8; text-align: left; list-style-type: square; padding-left: 20px;">
                 <li><strong>HA Risk:</strong> Triggers if replicas < 2.</li>
                 <li><strong>Resource Constraints:</strong> Detects missing CPU/Memory limits.</li>
@@ -40,9 +64,18 @@
             </ul>
         </div>
 
-                <main id="dashboard" style="display: none;">
+        <div id="rulesModal" class="modal">
+            <div class="modal-content" style="width: 70%; max-height: 80vh; overflow-y: auto;">
+                <span class="close" id="closeRules">&times;</span>
+                <h2 style="color: #c9190b;">Current Analysis Rules</h2>
+                <div id="rulesContent" style="text-align: left; font-family: monospace; white-space: pre-wrap; background: #f4f4f4; padding: 15px; border-radius: 5px;">
+                    Loading rules...
+                </div>
+            </div>
+        </div>
+          <main id="dashboard" style="display: none;">
             <h2 id="cluster-name" style="font-size: 15px; color: #94a3b8; font-weight: 800; text-transform: uppercase; margin-bottom: 20px;">Analysis Summary</h2>
-            <div id="cluster-list"></div>
+          <div id="cluster-list"></div>
 
 
             <div id="raw-section" style="margin-top: 40px;">
@@ -54,6 +87,14 @@
             </div>
 
         </main>
+              
+
+        <footer class="dashboard-footer">
+              <div class="footer-content">
+                  <span>DRC WEBVERSION | <strong>v2.1 - Charizard</strong></span>
+                  <span class="timestamp"> Date: 2026-03-15</span>
+              </div>
+        </footer>
 
     </div>
 
