@@ -33,7 +33,7 @@ class InfinispanDRCAdvisor:
         if u == "ki": return v / (1024 * 1024)
         return v
 
-    def analyze(self):
+    def analyze(self, debug=True):
         results = []
         if isinstance(self.data, dict) and 'items' in self.data:
             items = self.data['items']
@@ -52,10 +52,13 @@ class InfinispanDRCAdvisor:
             req = res.get('requests', {})
 
             # Extract Resource Values
+            # 1. Capture Limits (remains the same)
             cpu_l = cont.get('cpu') or lim.get('cpu')
             mem_l = cont.get('memory') or lim.get('memory')
-            cpu_r = req.get('cpu') or cpu_l
-            mem_r = req.get('memory') or mem_l
+
+            # 2. Capture Requests: Default to -1 if missing
+            cpu_r = req.get('cpu') if req.get('cpu') is not None else -1
+            mem_r = req.get('memory') if req.get('memory') is not None else -1
 
             # Cgroups v2 / Version Logic
             ver = str(spec.get('version', '0'))
@@ -63,22 +66,29 @@ class InfinispanDRCAdvisor:
             heap_ratio = 0.25 if is_old_ver else 0.50
 
             # QoS Determination (Validated Logic)
-            qos_id = None
-            if not cpu_l or not mem_l:
-                qos, qos_id = "BestEffort (Host Bound)", "qos_kcs"
-                heap_display = f"{int(heap_ratio*100)}% of Host RAM"
-            elif cpu_l == cpu_r and mem_l == mem_r:
-                qos = "Guaranteed"
-                heap_display = f"{self.to_gb(mem_l) * heap_ratio:.2f}Gi"
-            else:
-                qos, qos_id = "Burstable", "qos_risk"
-                heap_display = f"{self.to_gb(mem_l) * heap_ratio:.2f}Gi"
+            # Default to Best Effort (The "Important" Risk)
+            qos, qos_id = "BestEffort", "qos_important"
+            heap_display = f"{int(heap_ratio*100)}% of Host RAM"
+
+            if cpu_r or mem_r:
+                # It has requests, so it's at least Burstable
+                qos, qos_id = "Burstable", "qos_warning"
+                # Calculate heap based on the defined memory limit
+                mem_val = mem_l if mem_l else 0
+                heap_display = f"{self.to_gb(mem_val) * heap_ratio:.2f}Gi"
+                
+                # Check for promotion to Guaranteed
+                if cpu_l and mem_l and cpu_l == cpu_r and mem_l == mem_r:
+                    qos, qos_id = "Guaranteed", "qos_notice"
 
             # Run the Logical Registry
             raw_ids = rules.check_full_logic(spec, meta, cont, self.to_gb)
 
             if qos_id not in raw_ids:
                 raw_ids.append(qos_id)
+
+            if debug:
+                print(raw_ids)
 
             results.append({
                 "name": meta.get('name', 'Unknown'),

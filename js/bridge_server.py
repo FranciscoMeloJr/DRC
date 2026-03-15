@@ -80,7 +80,7 @@ class BridgeHandler(http.server.SimpleHTTPRequestHandler):
             engine = InfinispanDRCAdvisor()
             engine.load_content(yaml_data)
             results = engine.analyze()
-
+            print(f"DEBUG DATA: {json.dumps(results, indent=2)}")
 
             # Tally the summary findings (Required for the JS Face KPIs)
             summary = {}

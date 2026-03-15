@@ -16,8 +16,9 @@ probes_missing,WARNING,STABILITY: Custom probes missing. Default settings may ca
 rolling_upgrade_pressure,NOTICE,Upgrade type 'Rolling' can cause state transfer pressure in large clusters.
 mem_limit,WARNING,KCS 6962451: Memory sizing and JVM overhead for Data Grid.
 cpu_limit,WARNING,KCS 7012354: CPU starvation impacts on JGroups/Clustering.
-qos_risk,CRITICAL,KCS 6991230: Burstable QoS detected (Limits != Requests). Risk of CPU throttling and JGroups timeouts.
-qos_kcs,CRITICAL,KCS 6991230: Best-Effort QoS (Host Bound). Pod is prioritized for eviction during node pressure.
+qos_notice,NOTICE,QoS is Guaranteed.
+qos_warning,WARNING,KCS 6991230: Burstable QoS detected (Limits != Requests). Risk of CPU throttling and JGroups timeouts.
+qos_important,CRITICAL,KCS 6991230: Best-Effort QoS (Host Bound). Pod is prioritized for eviction during node pressure.
 eviction_missing,WARNING,KCS 6954312: Cache lacks eviction/max-size. Risk of OOM on the JVM.
 expose_type,WARNING,KCS 6993061: External access configuration via Route (using Service).
 encryption_info,WARNING,KCS 7017543: Details on configuring and verifying Data Grid encryption types.

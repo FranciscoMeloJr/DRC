@@ -13,7 +13,7 @@ def check_unknown_fields(spec):
         return f"SPEC UNKNOWN: Fields not recognized: {', '.join(unknowns)}"
     return None
 
-def check_full_logic(spec, meta, container, to_gb):
+def check_full_logic(spec, meta, container, to_gb, debug=False):
     findings = []
     service_spec = spec.get('service', {})
     jvm_opts = spec.get('extraJvmOpts', "")
@@ -109,7 +109,6 @@ def check_full_logic(spec, meta, container, to_gb):
         if "-Dcom.redhat.fips=false" not in jvm_opts:
             findings.append("fips_requirement")
 
-
     # 17. Detecting logging
     logging_conf =  spec.get('logging', {})
     log_level = logging_conf.get('level', '').upper()
@@ -135,6 +134,9 @@ def check_full_logic(spec, meta, container, to_gb):
     
     if limits != requests or not limits:
         findings.append("qos_mismatch")
+
+    if debug:
+        print(findings)
 
     return findings
     

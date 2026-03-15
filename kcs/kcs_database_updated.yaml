@@ -216,24 +216,32 @@ spec:
 # =============================================================================
 
 logic_patterns:
-  qos_mismatch:
-    condition: "spec.container.memory != spec.container.memory_limit"
-    criticality: CRITICAL
-    reference: "KCS 6991230: Burstable QoS detected (Limits != Requests). Risk of CPU throttling and timeouts."
-    kcs: "KCS 6991230"
-    fix: "Set Requests and Limits to the same value for Guaranteed QoS."
+  # Matches CSV: qos_important (CRITICAL)
   qos_best_effort:
-    condition: "is_null(spec.container.cpu) and is_null(spec.container.memory)"
+    condition: "is_null(spec.container.cpu_request) and is_null(spec.container.memory_request)"
     criticality: CRITICAL
+    id: "qos_important"
     reference: "KCS 6991230: Best-Effort QoS (Host Bound). Pod is prioritized for eviction during node pressure."
     kcs: "KCS 6991230"
-    fix: "Explicitly define CPU and Memory resources."
-  prod_resources_missing:
-    condition: "spec.container.cpu != spec.container.cpu_limit or spec.container.memory != spec.container.memory_limit"
-    criticality: CRITICAL
-    reference: "Production environment recommendation is Guaranteed QoS (Requests == Limits)."
+    fix: "Explicitly define CPU and Memory resources to move away from Best-Effort."
+
+  # Matches CSV: qos_warning (WARNING)
+  qos_mismatch:
+    condition: "spec.container.cpu_request != spec.container.cpu_limit or spec.container.memory_request != spec.container.memory_limit"
+    criticality: WARNING
+    id: "qos_warning"
+    reference: "KCS 6991230: Burstable QoS detected (Limits != Requests). Risk of CPU throttling and JGroups timeouts."
     kcs: "KCS 6991230"
-    fix: "Align resource requests and limits for production stability."
+    fix: "Set Requests and Limits to the same value for Guaranteed QoS."
+
+  # Matches CSV: qos_notice (NOTICE)
+  qos_guaranteed:
+    condition: "spec.container.cpu_request == spec.container.cpu_limit and spec.container.memory_request == spec.container.memory_limit"
+    criticality: NOTICE
+    id: "qos_notice"
+    reference: "QoS is Guaranteed."
+    kcs: "N/A"
+    fix: "No action required. Resource configuration is optimized for production."
   low_resources:
     condition: "spec.container.cpu < 1 or spec.container.memory < 2Gi"
     criticality: IMPORTANT
