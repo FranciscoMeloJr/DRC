@@ -27,7 +27,6 @@ print(f"File exists?: {os.path.exists(target_file)}")
 print("--- END DEBUG ---\n")
 # --- END DEBUG ---
 
-
 # Add the parent directory to the path so we can import the engine
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -47,17 +46,15 @@ except ImportError as e:
     traceback.print_exc()
     sys.exit(1)
 
-PORT = 8080
-
 class BridgeHandler(http.server.SimpleHTTPRequestHandler):
-    def do_GET(self):
+    def do_GET(self,debug=False):
         # 1. Handle the Logo/Static files (Since they live outside the /js folder)
         if self.path.startswith('/static/'):
             try:
                 # Calculate path to the 'static' folder (one level up from /js)
                 base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
                 file_path = os.path.join(base_path, self.path.lstrip('/'))
-                
+
                 with open(file_path, 'rb') as f:
                     self.send_response(200)
                     # Set the correct header for images
@@ -71,9 +68,16 @@ class BridgeHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_error(404, "Static file not found")
                 return
         # 2. Now 'engine' is defined in the module scope and accessible here
-        engine = InfinispanDRCAdvisor()
         if self.path == '/api/rules':
             try:
+                engine = InfinispanDRCAdvisor()
+                if debug:
+                    # --- TEMPORARY DEBUG FOR GET ROUTE ---
+                    print(f"GET Route CWD: {os.getcwd()}")
+                    print(f"GET Route Engine DB Size: {len(engine.kcs_db)}")
+                    print(f"GET Route Engine DB Keys: {list(engine.kcs_db.keys())}")
+                    # --- END DEBUG ---
+
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Access-Control-Allow-Origin', '*')
@@ -110,7 +114,7 @@ class BridgeHandler(http.server.SimpleHTTPRequestHandler):
 
             response_data = {
                 "metadata": {
-                    "generated_at": "Live Analysis",
+                    "generated_at": "Infinispan Cluster Analysis",
                     "summary": summary
                 },
                 "results": results
@@ -130,6 +134,7 @@ class BridgeHandler(http.server.SimpleHTTPRequestHandler):
         root = os.path.dirname(os.path.abspath(__file__))
         return os.path.join(root, path.lstrip('/'))
 
+PORT=8080
 with socketserver.TCPServer(("", PORT), BridgeHandler) as httpd:
     print(f"🚀 Bridge Active: http://localhost:{PORT}")
     print(f"Serving from: {os.path.dirname(os.path.abspath(__file__))}")

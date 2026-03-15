@@ -1,0 +1,15 @@
+# Python bytecode
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+
+# Local environment/IDE
+.git/
+.vscode/
+.idea/
+venv/
+.env
+
+# Build artifacts
+container/Dockerfile
