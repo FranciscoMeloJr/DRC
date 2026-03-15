@@ -1,0 +1,260 @@
+# =============================================================================
+# DRC Advisor Rules Registry v3 - COMPLETE PRODUCTION SPEC
+# Pathing strictly follows: oc explain infinispans.spec --recursive
+# =============================================================================
+
+spec:
+  # --- Cluster Scaling & Quorum ---
+  replicas:
+    single_node_risk:
+      condition: "== 1"
+      criticality: CRITICAL
+      reference: "There is only one pod in this cluster."
+      kcs: "N/A"
+      fix: "Add more than one pod for production environments."
+    quorum_risk:
+      condition: "% 2 == 0"
+      criticality: CRITICAL
+      reference: "Quorum requirements and even-node split-brain risk."
+      kcs: "KCS 6955511"
+      fix: "Have enough quorum and use an odd number of nodes to avoid split brain."
+
+  # --- Scheduling & Availability ---
+  affinity:
+    podAntiAffinity:
+      ha_risk:
+        condition: "is_null()"
+        criticality: IMPORTANT
+        reference: "The pods could be deployed in the same hosts. No anti-affinity detected."
+        kcs: "N/A"
+        fix: "Use anti-affinity rules to spread pods across different nodes."
+      affinity_soft:
+        condition: "exists(preferredDuringSchedulingIgnoredDuringExecution)"
+        criticality: WARNING
+        reference: "Availability: podAntiAffinity is set to 'preferred' (soft). Pods may co-locate if node resources are tight."
+        kcs: "KCS 6991230"
+        fix: "Consider using 'required' (hard) anti-affinity rules for production."
+      affinity_hard:
+        condition: "exists(requiredDuringSchedulingIgnoredDuringExecution)"
+        criticality: NOTICE
+        reference: "Best Practice: podAntiAffinity is set to 'required' (hard). Ensures max availability."
+        kcs: "N/A"
+        fix: "Maintain current anti-affinity setting."
+      affinity_weak:
+        condition: "topologyKey != 'kubernetes.io/hostname'"
+        criticality: IMPORTANT
+        reference: "Availability Risk: Using a weak topologyKey or 'Preferred' anti-affinity."
+        kcs: "KCS 6991230"
+        fix: "Use 'kubernetes.io/hostname' as the topologyKey with 'required' anti-affinity."
+
+  # --- Automation & Scaling ---
+  autoscale:
+    autoscale_invalid:
+      condition: "disabled == false"
+      criticality: WARNING
+      reference: "AUTOSCALE: Useless for DataGrid service types and risky for state transfer."
+      kcs: "N/A"
+      fix: "Remove Autoscale configuration from the Infinispan CR."
+
+  # --- Legacy Features ---
+  cloudEvents:
+    cloudevents_deprecated:
+      condition: "exists()"
+      criticality: NOTICE
+      reference: "DEPRECATED: cloudEvents used. This feature is scheduled for removal."
+      kcs: "N/A"
+      fix: "Consult documentation to migrate away from CloudEvents."
+
+  # --- Replication & Cross-Site ---
+  configListener:
+    bidirectional_disabled:
+      condition: "enabled == false or not_exists()"
+      criticality: IMPORTANT
+      reference: "KCS 6973004: spec.configListener is missing. Bidirectional replication is disabled."
+      kcs: "KCS 6973004"
+      fix: "Enable configListener to support bidirectional x-site replication."
+    logging:
+      cl_debug:
+        condition: "level == 'debug'"
+        criticality: NOTICE
+        reference: "ConfigListener DEBUG logging is active (small performance impact)."
+        kcs: "KCS 6973004"
+        fix: "Set logging level to INFO if DEBUG is not strictly required."
+
+  # --- Runtime & Resource Allocation ---
+  container:
+    cpu:
+      cpu_limit:
+        condition: "val_to_float() < 2"
+        criticality: WARNING
+        reference: "KCS 7012354: CPU starvation impacts on JGroups/Clustering."
+        kcs: "KCS 7012354"
+        fix: "Increase CPU settings to at least 2.0 cores."
+    memory:
+      mem_limit:
+        condition: "is_null()"
+        criticality: WARNING
+        reference: "Memory sizing and JVM overhead for Data Grid. No explicit limit set."
+        kcs: "N/A"
+        fix: "Set explicit memory requests and limits."
+    extraJvmOpts:
+      jvm_opts_detect:
+        condition: "exists()"
+        criticality: NOTICE
+        reference: "Manual: extraJvmOpts detected. These options are tuning the JVM behavior."
+        kcs: "N/A"
+        fix: "Ensure manual options do not conflict with Operator-managed heap."
+      xmx_detected:
+        condition: "contains('-Xmx') or contains('-Xms')"
+        criticality: CRITICAL
+        reference: "-Xmx or -Xms detected in extraJvmOpts. The Operator should manage heap sizing."
+        kcs: "KCS x"
+        fix: "Remove Xmx/Xms from extraJvmOpts; sizing is handled by the Operator via memory limits."
+      g1gc_recommended:
+        condition: "not contains('UseG1GC')"
+        criticality: NOTICE
+        reference: "Tuning: Heap > 3GB detected. Use -XX:+UseG1GC to optimize garbage collection."
+        kcs: "KCS x"
+        fix: "G1GC has better performance than ParallelGC for Data Grid heaps."
+      fips_requirement:
+        condition: "host_fips == true"
+        criticality: IMPORTANT
+        reference: "FIPS Mode: Host is FIPS-enabled. To disable at DG level, use -Dcom.redhat.fips=false."
+        kcs: "KCS 6907521"
+        fix: "Ensure FIPS compliance or explicitly disable if required by the application."
+
+  # --- External Access ---
+  expose:
+    type_check:
+      expose_type_risk:
+        condition: "type == 'Route'"
+        criticality: WARNING
+        reference: "KCS 6993061: External access configuration via Route (using Service)."
+        kcs: "KCS 6993061"
+        fix: "Verify Route timeouts and use DataGrid service type where possible."
+
+  # --- Management & Monitoring ---
+  jmx:
+    jmx_enabled:
+      condition: "enabled == true"
+      criticality: NOTICE
+      reference: "JMX Exposer: Enabled. Ensure appropriate security measures are in place."
+      kcs: "N/A"
+      fix: "Secure JMX endpoints using endpointSecretName."
+
+  logging:
+    logging_perf:
+      condition: "categories.contains('DEBUG') or categories.contains('TRACE')"
+      criticality: WARNING
+      reference: "Performance Risk: DEBUG/TRACE logging is enabled. This increases disk I/O and latency."
+      kcs: "KCS 6991230"
+      fix: "Switch to INFO or WARN logging levels for production environments."
+
+  # --- Security & Compliance ---
+  security:
+    endpointEncryption:
+      encryption_info:
+        condition: "is_null()"
+        criticality: WARNING
+        reference: "KCS 7017543: Details on configuring and verifying Data Grid encryption types."
+        kcs: "KCS 7017543"
+        fix: "Configure endpoint encryption to secure data in transit."
+
+  # --- Core Service Definition ---
+  service:
+    type:
+      cache_type:
+        condition: "== 'Cache'"
+        criticality: IMPORTANT
+        reference: "KCS 6972352: Service type 'Cache' is deprecated."
+        kcs: "KCS WARNING"
+        fix: "Replace with service type 'DataGrid'."
+    container:
+      storage:
+        ephemeral_missing:
+          condition: "is_null()"
+          criticality: WARNING
+          reference: "RESOURCE RISK: No ephemeral-storage limit. Logs or local stores could cause node pressure."
+          kcs: "KCS x"
+          fix: "Verify/set ephemeral storage limits in the container spec."
+      probes:
+        probes_missing:
+          condition: "livenessProbe == null or readinessProbe == null"
+          criticality: WARNING
+          reference: "STABILITY: Custom probes missing. Default settings may cause pods to be killed during state transfer."
+          kcs: "KCS -"
+          fix: "Review custom liveness and readiness probe configurations."
+    sites:
+      local:
+        discovery:
+          xsite_gossip_risk:
+            condition: "launchGossipRouter == false"
+            criticality: IMPORTANT
+            reference: "KCS 7021134: Cross-site replication requires 'relay-node' or 'GossipRouter' configuration."
+            kcs: "KCS 7021134"
+            fix: "Set launchGossipRouter to true for cross-site discovery."
+
+  # --- Lifecycle & Maintenance ---
+  upgrades:
+    rolling_upgrade_pressure:
+      condition: "type == 'Rolling'"
+      criticality: NOTICE
+      reference: "Upgrade type 'Rolling' can cause state transfer pressure in large clusters."
+      kcs: "N/A"
+      fix: "Monitor cluster performance during rolling upgrades."
+
+  version:
+    version_old:
+      condition: "val_to_float() < 8.4"
+      criticality: WARNING
+      reference: "KCS 7031245: Operand version < 8.4 detected. Heap will be 25% on cgroups v2."
+      kcs: "KCS 7031245"
+      fix: "Upgrade to Operand version 8.4.x or higher."
+
+# =============================================================================
+# LOGIC PATTERNS - Cross-Field & Behavioral Validation
+# =============================================================================
+
+logic_patterns:
+  qos_mismatch:
+    condition: "spec.container.memory != spec.container.memory_limit"
+    criticality: CRITICAL
+    reference: "KCS 6991230: Burstable QoS detected (Limits != Requests). Risk of CPU throttling and timeouts."
+    kcs: "KCS 6991230"
+    fix: "Set Requests and Limits to the same value for Guaranteed QoS."
+  qos_best_effort:
+    condition: "is_null(spec.container.cpu) and is_null(spec.container.memory)"
+    criticality: CRITICAL
+    reference: "KCS 6991230: Best-Effort QoS (Host Bound). Pod is prioritized for eviction during node pressure."
+    kcs: "KCS 6991230"
+    fix: "Explicitly define CPU and Memory resources."
+  prod_resources_missing:
+    condition: "spec.container.cpu != spec.container.cpu_limit or spec.container.memory != spec.container.memory_limit"
+    criticality: CRITICAL
+    reference: "Production environment recommendation is Guaranteed QoS (Requests == Limits)."
+    kcs: "KCS 6991230"
+    fix: "Align resource requests and limits for production stability."
+  low_resources:
+    condition: "spec.container.cpu < 1 or spec.container.memory < 2Gi"
+    criticality: IMPORTANT
+    reference: "Resources too low: 1 CPU or <2GB RAM is not recommended for production clusters."
+    kcs: "KCS 6991230"
+    fix: "Increase container resources to at least 2 CPU and 4GB RAM."
+  cgv2_risk:
+    condition: "version < 8.4.5"
+    criticality: IMPORTANT
+    reference: "Version < 8.4.5 detected. On cgroups v2 (OCP 4.12+), default heap will be limited to 25%."
+    kcs: "KCS 6991230"
+    fix: "Use Infinispan 8.4.5+ for improved cgroups v2 resource handling."
+  monitoring_missing:
+    condition: "is_null(metadata.annotations['prometheus.io/scrape'])"
+    criticality: IMPORTANT
+    reference: "Monitoring: Prometheus scrape labels/annotations are not used. Metrics will not be collected."
+    kcs: "KCS 6991230"
+    fix: "Add prometheus.io/scrape annotations to the metadata."
+  eviction_missing:
+    condition: "is_null(spec.service.container.eviction)"
+    criticality: WARNING
+    reference: "KCS 6954312: Cache lacks eviction/max-size. Risk of OOM on the JVM."
+    kcs: "KCS 6954312"
+    fix: "Configure eviction or max-size within the service container spec."

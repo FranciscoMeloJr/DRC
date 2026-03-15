@@ -1,0 +1,21 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: logic-test-cluster
+  namespace: default
+spec:
+  replicas: 3
+  # MISSING: logging block (should trigger drc_log)
+  # MISSING: affinity block (should trigger affinity_weak)
+  container:
+    extraJvmArgs: "-Xmx2g"
+    resources:
+      # MISMATCHED: limits vs requests (should trigger qos_mismatch)
+      limits:
+        cpu: "2000m"
+        memory: "4Gi"
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
+  service:
+    type: DataGrid

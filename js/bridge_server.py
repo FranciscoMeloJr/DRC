@@ -47,10 +47,30 @@ except ImportError as e:
     traceback.print_exc()
     sys.exit(1)
 
-
-PORT = 8080
+PORT = 8081
 
 class BridgeHandler(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        # 2. Now 'engine' is defined in the module scope and accessible here
+        engine = InfinispanDRCAdvisor()
+        if self.path == '/api/rules':
+            try:
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                
+                # Check if kcs_db exists on the engine instance
+                pretty_json = json.dumps(engine.kcs_db, indent=4)
+                self.wfile.write(pretty_json.encode('utf-8'))
+                return
+            except Exception as e:
+                print(f"Error serving rules: {e}")
+                self.send_error(500, str(e))
+            return
+
+        return super().do_GET()
+
     def do_POST(self):
         if self.path == '/analyze':
             content_length = int(self.headers['Content-Length'])
