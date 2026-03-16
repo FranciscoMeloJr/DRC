@@ -1,228 +1,168 @@
+/* Core Layout */
 body {
-    background-color: #004d99;
-    color: #ffffff;
-    font-family: 'Segoe UI', sans-serif;
+    font-family: 'RedHatDisplay', Helvetica, Arial, sans-serif;
+    background-color: #004080; /* Blue background */
     margin: 0;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    padding-bottom: 120px;
 }
 
-.container {
-    width: 100%;
-    max-width: 600px;
-}
-
+/* Header */
 .header {
+    background-color: #ee0000;
+    color: white;
+    padding: 15px 25px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    position: relative;
-    padding: 20px 25px 20px 90px !important; /* Spacing for the big logo */
-    background-color: #c9190b;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
 
-/* The BIG Logo */
-.header::before {
-    content: "";
-    position: absolute;
-    left: 20px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 60px; /* Big and bold for v2.1 */
-    height: 60px;
-    background-image: url('../static/drc.png');
-    background-size: contain;
-    background-repeat: no-repeat;
-}
+.header-logo { height: 40px; }
+.header-title { font-weight: 800; font-size: 1.2em; letter-spacing: 1px; }
 
-/*.about-btn {
+.header-btn {
     background: transparent;
     border: 1px solid white;
     color: white;
-    padding: 4px 12px;
-    border-radius: 3px;
-    cursor: pointer;
-    font-size: 0.85rem;
-    font-weight: 600;
-    transition: 0.2s;
-} */
-
-.about-btn:hover {
-    background: white;
-    color: #c9190b;
-}
-
-.source-link {
-    color: #ffffff;
-    font-size: 11px;
-    text-decoration: none;
-    border: 1px solid rgba(255,255,255,0.5);
-    padding: 5px 10px;
+    padding: 5px 12px;
     border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: bold;
 }
 
-#drop-zone {
-    height: 180px;
-    border: 2px dashed #4e4e6a;
-    background: #a3a3a3;
-    border-radius: 12px;
+/* Analysis Helper: Black Box with Red Left Mark */
+.analysis-helper {
+    background-color: #000;
+    color: #fff;
+    padding: 15px 20px;
+    margin: 20px auto;
+    max-width: 1000px;
+    border-left: 5px solid #ee0000;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: help;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+.analysis-helper:hover {
+    background-color: #1a1a1a;
+}
+
+/* Container */
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* Drop Zone: Grey Background with White text */
+.drop-zone {
+    background: #b3b3b3;
+    border: 2px dashed #666;
+    border-radius: 15px;
+    padding: 50px 20px;
+    text-align: center;
+    color: white;
+}
+
+/* 📤 The Emoji Icon Styling */
+.icon-container {
+    margin-bottom: 15px;
+    font-size: 60px; /* Adjust size of the emoji here */
+    line-height: 1;
+}
+
+.drop-text {
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 25px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Button Grouping inside Drop Zone */
+.button-group {
     display: flex;
-    flex-direction: column;
-    align-items: center;
     justify-content: center;
-    margin-bottom: 20px;
-    transition: 0.3s;
+    gap: 15px;
 }
 
-#upload-btn {
-    background: #ee0000;
+.main-btn {
+    background-color: #ee0000;
     color: white;
     border: none;
-    padding: 10px 20px;
-    border-radius: 4px;
+    padding: 12px 20px;
+    border-radius: 6px;
     font-weight: bold;
     cursor: pointer;
-    text-transform: uppercase;
-    font-size: 12px;
+    font-size: 11px;
 }
 
-#upload-btn:hover { background: #ff1a1a; }
-
-.helper-box {
-    background: #000000;
-    padding: 15px;
-    border-radius: 8px;
-    font-size: 13px;
-    margin-bottom: 20px;
-    border-left: 4px solid #ee0000;
+.secondary-btn {
+    background-color: #4e4e6a;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 11px;
 }
 
-.card {
+/* Utility Dock */
+.bottom-menu-dock {
+    position: fixed;
+    bottom: 55px;
+    left: 50%;
+    transform: translateX(-50%);
     background: white;
-    color: #87CEEB;
-    margin-bottom: 10px;
-    padding: 14px;
-    border-radius: 8px;
+    padding: 10px 30px;
+    border-radius: 50px;
     display: flex;
     align-items: center;
+    gap: 15px;
+    border: 2px solid #ee0000;
+    z-index: 1000;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
 }
 
-.dot {
-    height: 10px;
-    width: 10px;
-    background-color: #e60000;
-    border-radius: 50%;
-    margin-right: 15px;
-    flex-shrink: 0;
-}
+.dock-group { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: bold; color: #333; }
+.dock-sep { width: 1px; height: 20px; background: #ddd; }
+.dock-select { border: none; font-weight: bold; font-size: 11px; color: #ee0000; background: transparent; cursor: pointer; }
 
-.dashboard-footer {
-    margin-top: 30px;
-    padding: 20px;
-    border-top: 1px solid #eee;
-    text-align: center;
-    font-size: 0.8rem;
-    color: #666;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-.dashboard-footer strong {
-    color: #002f5d;
-}
-
-/* Enhanced Upload Area for v2.1 */
-.upload-section {
-    border: 2px dashed #ccc;
-    transition: all 0.3s ease; /* Smooth color fading */
-}
-
-.upload-section:hover {
-    border-color: #c9190b; /* Charizard Red */
-    background-color: rgba(201, 25, 11, 0.05); /* Very light red tint */
-    transform: translateY(-2px); /* Subtle lift effect */
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    cursor: pointer;
-}
-
-/* Force both to look identical */
-.about-btn, 
-.source-link, 
-.secondary-btn, 
-#viewRulesBtn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    
-    /* Exact same border and sizing */
-    border: 1px solid rgba(255, 255, 255, 0.8) !important;
+.dock-btn {
     background: transparent;
-    color: white !important;
-    
-    /* Matching dimensions */
-    padding: 6px 16px !important;
-    height: 32px; /* Fixed height ensures they match perfectly */
-    border-radius: 4px;
-    
-    font-size: 13px;
-    font-weight: 600;
-    text-decoration: none !important;
+    border: none;
+    font-weight: bold;
+    font-size: 10px;
+    color: #444;
     cursor: pointer;
-    transition: all 0.2s ease;
-    box-sizing: border-box; /* Ensures padding doesn't grow the button */
+    text-transform: uppercase;
 }
 
-/* Identical hover state for both */
-.about-btn:hover, 
-.source-link:hover,
-#viewRulesBtn:hover {
-    background: white !important;
-    color: #c9190b !important;
-    border-color: white !important;
-    transform: translateY(-1px);
+.dock-btn:hover { color: #ee0000; }
+
+/* Switch Styling */
+.switch { position: relative; width: 34px; height: 18px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #666; border-radius: 34px; transition: .4s; }
+.slider:before { position: absolute; content: ""; height: 12px; width: 12px; left: 3px; bottom: 3px; background-color: white; border-radius: 50%; transition: .4s; }
+input:checked + .slider { background-color: #ee0000; }
+input:checked + .slider:before { transform: translateX(16px); }
+
+.toggle-status-text { font-size: 10px; font-weight: 800; min-width: 50px; color: #333; }
+
+/* Modals */
+.modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); }
+.modal-content { background: white; margin: 10% auto; padding: 25px; width: 60%; border-radius: 8px; position: relative; }
+.close { position: absolute; right: 20px; top: 15px; font-size: 28px; cursor: pointer; }
+.raw-box { background: #1e1e1e; color: #00ff00; padding: 15px; border-radius: 8px; font-family: monospace; }
+
+/* Footer info */
+.footer {
+    position: fixed; bottom: 0; width: 100%;
+    text-align: center; padding: 15px;
+    color: #66a3ff; font-size: 11px;
 }
-
-/* Specific colors for the YAML Rules button */
-.secondary-btn {
-    background: #4e4e6a;
-    color: white;
-    padding: 10px 15px;
-}
-
-/* The Hover Effect that actually works now */
-.secondary-btn:hover {
-    background-color: #3d3d54; /* Slightly darker purple/blue */
-    transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-}
-
-/* Console Theme for the Rules Modal */
-#rulesContent {
-    background-color: #0d1117 !important; /* GitHub-style dark grey/black */
-    color: #ffffff !important;           /* Pure white text */
-    padding: 24px;
-    border-radius: 6px;
-    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-    font-size: 13px;
-    line-height: 1.6;
-    text-align: left;
-    white-space: pre-wrap;
-    border: 1px solid #30363d;
-    box-shadow: inset 0 0 12px rgba(0,0,0,0.4);
-    overflow-x: auto;
-}
-
-/* Ensure the modal content container itself doesn't hide the dark background */
-.modal-content {
-    background-color: #ffffff; /* Keep the outer modal white */
-    color: #333;
-}
-
-.card-text { font-weight: 600; font-size: 13px; text-transform: uppercase; }
-
-/* Modal Styling */
-.modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); }
-.modal-content { background: white; margin: 10% auto; padding: 25px; border-radius: 5px; width: 40%; font-family: sans-serif; }
-.close { float: right; cursor: pointer; font-size: 24px; color: #aaa; }
-.close:hover { color: black; }
