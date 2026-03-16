@@ -50,14 +50,17 @@ except ImportError as e:
 PORT = 8080
 
 class BridgeHandler(http.server.SimpleHTTPRequestHandler):
-    def do_GET(self):
+    def do_GET(self, debug=True):
         # 1. Handle the Logo/Static files (Since they live outside the /js folder)
         if self.path.startswith('/static/'):
             try:
                 # Calculate path to the 'static' folder (one level up from /js)
                 base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
                 file_path = os.path.join(base_path, self.path.lstrip('/'))
-                
+                if debug:
+                    print(base_path)
+                    print(file_path)
+
                 with open(file_path, 'rb') as f:
                     self.send_response(200)
                     # Set the correct header for images

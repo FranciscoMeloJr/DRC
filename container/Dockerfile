@@ -1,3 +1,4 @@
+### DRC v2.1 - March 15 th
 FROM registry.redhat.io/ubi9/python-39:latest
 
 # 1. Switch to root to handle system-level directory setup
@@ -16,16 +17,16 @@ RUN pip install --no-cache-dir PyYAML
 RUN chown -R 1001:0 /opt/drc
 RUN chmod -R g=u /opt/drc
 
-# 6. Set Environment Variables so Python sees the parent directory
-ENV PYTHONPATH="/opt/drc"
+# 6. Print
+RUN ls -R /opt/drc
 
-# 7. Move into the 'js' folder
-WORKDIR /opt/drc/js
+# 7. Set Environment Variables so Python sees the parent directory
+ENV PYTHONPATH="/opt/drc"
 
 # 8. Switch to the non-root user
 USER 1001
 
 EXPOSE 8081
 
-# 9. Run the bridge script with unbuffered output
-CMD ["python", "-u", "bridge_server.py"]
+# 10. Run the bridge script with unbuffered output
+CMD ["python", "-u", "js/bridge_server.py"]

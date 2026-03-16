@@ -10,7 +10,7 @@ window.onload = function() {
 
     // About Modal Logic
     const modal = document.getElementById("aboutModal");
-    const btn = document.getElementById("aboutBtn");
+    const aboutBtn = document.getElementById("aboutBtn");
     const span = document.getElementsByClassName("close")[0];
 
     //Rules list
@@ -33,7 +33,7 @@ window.onload = function() {
 
     closeRules.onclick = () => rulesModal.style.display = "none";
 
-    btn.onclick = () => modal.style.display = "block";
+    aboutBtn.onclick = () => modal.style.display = "block";
     span.onclick = () => modal.style.display = "none";
     window.onclick = (e) => { if (e.target == modal) modal.style.display = "none"; }
 
