@@ -15,7 +15,7 @@
         </div>
         <div class="header-right">
             <button id="aboutBtn" class="header-btn">About</button>
-            <a href="https://github.com/FranciscoMeloJr/DRC" target="_blank" class="header-btn" style="text-decoration: none;">Source Git</a>
+            <a href="https://github.com/FranciscoMeloJr/DRC" target="_blank" id="sourceGitBtn" class="header-btn" style="text-decoration: none;">Source Git</a>
         </div>
     </header>
 
@@ -25,15 +25,15 @@
         </div>
 
         <div id="drop-zone" class="drop-zone">
-            <span style="font-size: 32px; margin-bottom: 10px;">📤</span>
-            <p class="drop-text">Drag & Drop YAML/XML or Click to Upload</p>
+            <div class="icon-container" style="font-size: 60px; margin-bottom: 15px;">📤</div>
+            <p class="drop-text" style="color: white; text-transform: uppercase; letter-spacing: 1px;">Drag & Drop YAML/XML or Click to Upload</p>
             
             <input type="file" id="file-input" hidden>
-            
-            <div class="button-group">
-                <button id="upload-btn" class="main-btn">SELECT CLUSTER YAML FILE</button>
-                <button id="ruleExampleBtn" class="secondary-btn">YAML RULES EXAMPLE</button>
-            </div>
+            <button id="upload-btn" class="main-btn">SELECT CLUSTER YAML FILE</button>
+        </div>
+
+        <div id="dashboard" style="display: none; margin-top: 30px;">
+            <div id="cluster-list" class="card-container"></div>
         </div>
     </div>
 
@@ -45,9 +45,7 @@
                 <option value="infinispan">Infinispan Cache</option>
             </select>
         </div>
-
         <div class="dock-sep"></div>
-
         <div class="dock-group">
             <span id="toggleText" class="toggle-status-text">OFFLINE</span>
             <label class="switch">
@@ -55,23 +53,42 @@
                 <span class="slider round"></span>
             </label>
         </div>
-
         <div class="dock-sep"></div>
-
         <button id="viewRulesBtn" class="dock-btn">VIEW RULES LIST</button>
-        <button id="ruleExampleBtn" class="dock-btn">YAML RULES EXAMPLE</button> <button id="kcsListBtn" class="dock-btn">KCS SOLUTIONS</button>
+        <button id="ruleExampleBtn" class="dock-btn">YAML RULES EXAMPLE</button>
+        <button id="kcsListBtn" class="dock-btn">KCS SOLUTIONS</button>
         <button id="exportBtn" class="dock-btn">EXPORT</button>
+    </div>
+
+    <div id="aboutModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeAbout">&times;</span>
+            <h2>About DRC Advisor</h2>
+            <p>Diagnostic & Reliability Checker (DRC) is designed to validate OpenShift cluster configurations and Infinispan cache definitions against Red Hat best practices.</p>
+            <p><strong>Version:</strong> 2.2 - Charizard</p>
+        </div>
+    </div>
+
+    <div id="rulesModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeRules">&times;</span>
+            <h2>Active Rule Set</h2>
+            <pre id="rulesContent" class="raw-box" style="max-height: 400px; overflow-y: auto;"></pre>
+        </div>
     </div>
 
     <div id="exampleModal" class="modal">
         <div class="modal-content">
             <span class="close" id="closeExample">&times;</span>
             <h3>YAML Rule Example</h3>
-            <pre class="raw-box" style="background: #1e1e1e; color: #00ff00;">
+            <p>Use this format for custom rules:</p>
+            <pre class="raw-box" style="background: #1e1e1e; color: #00ff00; padding: 15px;">
                 {
                   "rule": "Memory Limit Check",
                   "target": "Infinispan Cache",
-                  "check": "memory.max_size != null"
+                  "check": "memory.max_size != null",
+                  "severity": "CRITICAL",
+                  "message": "Distributed cache missing memory limits."
                 }
             </pre>
         </div>
