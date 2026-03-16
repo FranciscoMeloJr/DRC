@@ -94,7 +94,7 @@ class BridgeHandler(http.server.SimpleHTTPRequestHandler):
         return super().do_GET()
 
     def do_POST(self):
-        if self.path == '/analyze':
+        if self.path == '/api/analyze':
             content_length = int(self.headers['Content-Length'])
             yaml_data = self.rfile.read(content_length).decode('utf-8')
 

@@ -164,77 +164,137 @@ window.onload = function() {
     }
 
     async function handleFile(file) {
-        if (!file) return;
+    if (!file) return;
 
-        dashboard.style.display = 'block';
-        clusterList.innerHTML = '<div class="loading-box"><p>Analyzing binary stream...</p></div>';
+    dashboard.style.display = 'block';
+    clusterList.innerHTML = '<div class="loading-box"><p style="color:white;">Analyzing binary stream...</p></div>';
 
-        const formData = new FormData();
-        formData.append('file', file);
-        
-        try {
-            const response = await fetch('/api/analyze', {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-DRC-Profile': currentProfile,
-                    'X-DRC-Online': isOnlineMode
-                }
-            });
+    try {
+        // 1. Read the file content as text first
+        const fileContent = await file.text();
 
-            const data = await response.json();
-            renderDashboard(data);
+        // 2. Send the RAW text, not FormData
+        const response = await fetch('/api/analyze', {
+            method: 'POST',
+            body: fileContent, // Sending raw YAML/XML content
+            headers: {
+                'X-DRC-Profile': currentProfile,
+                'X-DRC-Online': isOnlineMode,
+                'Content-Type': 'text/plain' // Tells Python exactly what this is
+            }
+        });
 
-        } catch (error) {
-            console.error("Analysis Failed:", error);
-            clusterList.innerHTML = '<div class="card critical"><h3>Analysis Failed</h3><p>' + error.message + '</p></div>';
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`Server Error (${response.status}): ${errText}`);
         }
+
+        const data = await response.json();
+        renderDashboard(data);
+
+    } catch (error) {
+        console.error("Analysis Failed:", error);
+        clusterList.innerHTML = `
+            <div class="card critical">
+                <h3>Analysis Failed</h3>
+                <p>${error.message}</p>
+            </div>`;
     }
+}
 
     // ==========================================
     // 7. DASHBOARD RENDERING (VERBOSE)
     // ==========================================
+    /**
+     * DRC Advisor v2.2 - Final Result Renderer
+     * Features: White Pill Cards, Color Logic (Red/Orange/Blue/Green), and Auto-KCS Linking.
+     */
     function renderDashboard(data) {
-        while (clusterList.firstChild) {
-            clusterList.removeChild(clusterList.firstChild);
-        }
+        dashboard.style.display = 'block';
+        clusterList.innerHTML = '';
 
-        if (!data.findings || data.findings.length === 0) {
-            const emptyCard = document.createElement('div');
-            emptyCard.className = 'card notice';
-            emptyCard.innerHTML = '<h3>No Issues Found</h3><p>Configuration is compliant.</p>';
-            clusterList.appendChild(emptyCard);
-            return;
-        }
+        // Handle both raw array [ {...} ] and wrapped object { results: [...] }
+        const sourceData = Array.isArray(data) ? data : (data.results || []);
 
-        for (let i = 0; i < data.findings.length; i++) {
-            const finding = data.findings[i];
-            const card = document.createElement('div');
-            const severity = finding.severity.toLowerCase();
-            card.className = 'card ' + severity;
+        // --- A. SUMMARY SECTION ---
+        const summaryTitle = document.createElement('h3');
+        summaryTitle.className = 'section-title';
+        summaryTitle.innerText = "ANALYSIS SUMMARY";
+        clusterList.appendChild(summaryTitle);
 
-            const header = document.createElement('div');
-            header.className = 'card-header';
-            header.innerHTML = '<h3>' + finding.name + '</h3>';
+        sourceData.forEach(res => {
+            if (res.findings && Array.isArray(res.findings)) {
+                res.findings.forEach(f => {
+                    // 1. Create the White Card Container
+                    const card = document.createElement('div');
+                    card.className = 'card';
 
-            const body = document.createElement('div');
-            body.className = 'card-body';
-            body.innerHTML = '<p>' + finding.message + '</p>';
+                    // 2. Create the Status Dot
+                    const dot = document.createElement('div');
+                    dot.className = 'dot';
+                    
+                    // Color Mapping
+                    const severity = f.crit ? f.crit.toUpperCase() : 'NOTICE';
+                    const refText = f.ref || '';
 
-            if (finding.kcs_url) {
-                const kcsLink = document.createElement('a');
-                kcsLink.href = finding.kcs_url;
-                kcsLink.target = '_blank';
-                kcsLink.className = 'kcs-link';
-                kcsLink.innerText = 'View KCS Solution';
-                body.appendChild(document.createElement('hr'));
-                body.appendChild(kcsLink);
+                    if (severity === 'CRITICAL' || refText.toLowerCase().includes('risk')) {
+                        dot.style.background = '#e60000'; // RED
+                    } else if (severity === 'IMPORTANT') {
+                        dot.style.background = '#ff8c00'; // ORANGE
+                    } else if (severity === 'WARNING') {
+                        dot.style.background = '#007bff'; // BLUE
+                    } else if (severity === 'NOTICE') {
+                        dot.style.background = '#28a745'; // GREEN
+                    }
+
+                    // 3. Create Text Content with Regex Linker
+                    const text = document.createElement('div');
+                    text.className = 'card-text';
+                    
+                    // Formatting: Strip prefixes and underscores
+                    let cleanRef = refText.replace('NOTICE: ', '').replace(/_/g, ' ');
+
+                    /**
+                     * KCS LINKER:
+                     * Matches "KCS" or "KB" followed by a space (optional) and numbers.
+                     * Example: "KCS 6991230" -> <a href="...">KCS 6991230</a>
+                     */
+                    const kcsPattern = /(KCS|KB)\s*(\d+)/gi;
+                    const linkedRef = cleanRef.replace(kcsPattern, (match, type, id) => {
+                        return `<a href="https://access.redhat.com/solutions/${id}" 
+                                   target="_blank" 
+                                   title="Open Red Hat Solution ${id}"
+                                   style="color: #005fba; text-decoration: underline; font-weight: bold;">
+                                   ${match}
+                                </a>`;
+                    });
+
+                    // Render: CLUSTER-NAME: MESSAGE
+                    text.innerHTML = `<strong>${res.name.toUpperCase()}:</strong> ${linkedRef}`;
+
+                    // 4. Final Assembly
+                    card.appendChild(dot);
+                    card.appendChild(text);
+                    clusterList.appendChild(card);
+                });
             }
+        });
 
-            card.appendChild(header);
-            card.appendChild(body);
-            clusterList.appendChild(card);
-        }
+        // --- B. RAW DATA SECTION ---
+        const rawTitle = document.createElement('h3');
+        rawTitle.className = 'section-title';
+        rawTitle.style.marginTop = "40px";
+        rawTitle.innerText = "RAW DETAILED DATA";
+        clusterList.appendChild(rawTitle);
+
+        const rawBox = document.createElement('pre');
+        rawBox.className = 'raw-box'; 
+        rawBox.style.background = '#1e1e1e';
+        rawBox.style.color = '#00ff00';
+        rawBox.style.padding = '15px';
+        rawBox.style.borderRadius = '8px';
+        rawBox.innerText = JSON.stringify(data, null, 2);
+        clusterList.appendChild(rawBox);
     }
 
     // ==========================================

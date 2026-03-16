@@ -166,3 +166,44 @@ input:checked + .slider:before { transform: translateX(16px); }
     text-align: center; padding: 15px;
     color: #66a3ff; font-size: 11px;
 }
+
+/* v.2 */
+/* The White Pill Card */
+.card {
+    background-color: #ffffff !important; /* Forces white background */
+    border-radius: 50px; /* Gives it the rounded pill look from v2.1 */
+    display: flex;
+    align-items: center;
+    padding: 10px 25px;
+    margin: 8px 0;
+    width: fit-content; /* Keeps the card only as wide as the text */
+    min-width: 600px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+/* The Status Dot */
+.dot {
+    height: 12px;
+    width: 12px;
+    border-radius: 50%;
+    margin-right: 15px;
+    flex-shrink: 0;
+}
+
+/* The Text inside the card */
+.card-text {
+    color: #005fba; /* The specific blue text from v2.1 */
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'Segoe UI', sans-serif;
+    text-transform: uppercase;
+}
+
+/* Section Headings */
+.section-title {
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: bold;
+    margin: 25px 0 10px 0;
+    text-transform: uppercase;
+}
