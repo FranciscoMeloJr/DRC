@@ -7,18 +7,54 @@ class InfinispanDRCAdvisor:
         self.kcs_db = {}
         self._load_kcs()
 
-    def _load_kcs(self):
-        csv_path = os.path.join("kcs", "kcs_database.csv")
-        if os.path.exists(csv_path):
-            with open(csv_path, mode='r', encoding='utf-8-sig') as f:
-                reader = csv.DictReader(f)
-                reader.fieldnames = [n.strip() for n in reader.fieldnames]
-                for row in reader:
-                    if row.get('id'):
-                        self.kcs_db[row['id'].strip()] = {
-                            'crit': row.get('criticality', 'NOTICE').strip(),
-                            'ref': row.get('reference', '').strip()
-                        }
+    def _load_kcs(self, legacy=False):
+        if not legacy:
+            """v2.2: Streamlined loader. Merges legacy JSON and Modular YAML into kcs_db."""
+            self.kcs_db = {}
+
+            # 1. Load Legacy JSON (Keep it for backward compatibility)
+            legacy_path = 'kcs/kcs_db.json'
+            if os.path.exists(legacy_path):
+                with open(legacy_path, 'r') as f:
+                    self.kcs_db = json.load(f)
+
+            # 2. Append Modular YAML
+            modular_path = 'kcs/infinispan-spec-rules.yaml'
+            if os.path.exists(modular_path):
+                with open(modular_path, 'r') as f:
+                    registry = yaml.safe_load(f)
+                
+                # Flatten the tree directly into kcs_db
+                self._flatten_to_db(registry)
+        else:
+            csv_path = os.path.join("kcs", "kcs_database.csv")
+            if os.path.exists(csv_path):
+                with open(csv_path, mode='r', encoding='utf-8-sig') as f:
+                    reader = csv.DictReader(f)
+                    reader.fieldnames = [n.strip() for n in reader.fieldnames]
+                    for row in reader:
+                        if row.get('id'):
+                            self.kcs_db[row['id'].strip()] = {
+                                'crit': row.get('criticality', 'NOTICE').strip(),
+                                'ref': row.get('reference', '').strip()
+                            }
+
+    def _flatten_to_db(self, node, path_str=""):
+        """v2.2 Clean Logic: Flattens YAML into kcs_db using the natural path as the ID."""
+        if isinstance(node, dict):
+            if 'condition' in node:
+                # The ID is now just the path (e.g., 'infinispan.spec.replicas.single_node_risk')
+                rule_id = path_str.strip('.')
+                self.kcs_db[rule_id] = {
+                    "criticality": node.get('criticality', 'NOTICE'),
+                    "reference": node.get('reference', ''),
+                    "fix": node.get('fix', 'N/A'),
+                    "kcs": node.get('kcs', 'N/A')
+                }
+            else:
+                for k, v in node.items():
+                    # Recursively build the path string
+                    self._flatten_to_db(v, f"{path_str}{k}.")
 
     def load_content(self, yaml_content):
         self.data = yaml.safe_load(yaml_content)
