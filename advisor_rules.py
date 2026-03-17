@@ -1,18 +1,142 @@
 # Comprehensive Logic Registry
+import yaml
+import os
+import json 
+# V2.2
 
-def check_unknown_fields(spec):
-    known = {
-        'replicas', 'version', 'service', 'security', 'expose',
-        'configListener', 'container', 'affinity', 'logging',
-        'upgrades', 'jmx', 'autoscale', 'scheduling', 'dependencies',
-        'configMapName', 'cloudEvents', 'extraJvmOpts', 'sites'
+# --- 1. THE NEW CALLER (dispatcher) ---
+def split_res(val):
+    """Standardizes Infinispan resource strings (limit:request)."""
+    if val == "undefined" or val is None:
+        return {"limits": "undefined", "requests": "undefined"}
+    val_str = str(val).strip()
+    if ':' in val_str:
+        parts = val_str.split(':')
+        return {
+            "limits": parts[0] if parts[0] else "undefined",
+            "requests": parts[1] if parts[1] else "undefined"
+        }
+    return {"limits": val_str, "requests": val_str}
+
+def _expand(obj, keys):
+    """Safe dictionary expansion for the synthetic tree."""
+    if not isinstance(obj, dict): return "undefined"
+    return {k: obj.get(k, "undefined") for k in keys}
+
+def _eval_rule(obj, rule, findings, full_context):
+    """Evaluates a leaf rule with full tree visibility."""
+    cond = rule.get('condition')
+    spec_data = full_context.get('infinispan', {}).get('spec', {})
+    
+    # Clean up the condition string
+    cond = str(cond).strip()
+    
+    # If the condition doesn't start with 'obj' or a logical operator, 
+    # we assume it needs the 'obj' prefix (e.g., "== 1" -> "obj == 1")
+    eval_str = cond if "obj" in cond else f"obj {cond}"
+    
+    try:
+        eval_locals = {
+            "obj": obj,
+            "spec": spec_data,
+            "str": str, "float": float, "int": int, "any": any, "len": len
+        }
+        
+        # Use a restricted global dict for safety
+        if eval(eval_str, {"__builtins__": None}, eval_locals):
+            findings.append({
+                "crit": rule.get('criticality', 'NOTICE'),
+                "ref": rule.get('reference', ''),
+                "fix": rule.get('fix', ''),
+                "kcs": rule.get('kcs', '')
+            })
+    except Exception as e:
+        # During debugging, uncomment this to see why a rule failed:
+        # print(f"DEBUG: Eval Failed for [{eval_str}] with obj=[{obj}]: {e}")
+        pass
+
+def _walk_tree(user_node, rule_node, findings, full_context):
+    """Recursive tree walker."""
+    if not isinstance(rule_node, dict): return
+    
+    for key, value in rule_node.items():
+        if isinstance(value, dict) and 'condition' in value:
+            _eval_rule(user_node, value, findings, full_context)
+        elif isinstance(value, dict):
+            if isinstance(user_node, dict) and key in user_node:
+                _walk_tree(user_node[key], value, findings, full_context)
+            else:
+                # Keep current user_node context if key doesn't match data structure
+                _walk_tree(user_node, value, findings, full_context)
+
+def check_full_logic_tree(context):
+    findings = []
+    rules_path = 'kcs/infinispan-spec-rules.yaml'
+    if not os.path.exists(rules_path): return []
+    with open(rules_path, 'r') as f:
+        registry = yaml.safe_load(f)
+    _walk_tree(context, registry, findings, context)
+    return findings
+
+def check_full_logic_caller(spec, meta, status, container, to_gb, legacy=False, debug=True):
+    cpu_map = split_res(container.get("cpu"))
+    mem_map = split_res(container.get("memory"))
+
+    # Extract service container data safely
+    svc = spec.get("service", {})
+    svc_cont = svc.get("container", {}) if isinstance(svc.get("container"), dict) else {}
+
+    full_context = {
+        "infinispan": {
+            "metadata": _expand(meta, ["name", "namespace", "labels", "annotations"]),
+            "spec": {
+                "replicas": spec.get("replicas", "undefined"),
+                "version": spec.get("version", "undefined"),
+                "container": {
+                    "cpu": cpu_map,
+                    "memory": mem_map,
+                    "extraJvmOpts": container.get("extraJvmOpts", "undefined"),
+                    "storage": {
+                        "ephemeral": container.get("storage", {}).get("ephemeral", "undefined") 
+                        if isinstance(container.get("storage"), dict) else "undefined"
+                    },
+                },
+                "service": {
+                    "type": svc.get("type", "undefined"),
+                    "container": {
+                        # Force these to exist as keys so the Walker hits them
+                        "storage": svc_cont.get("storage", "undefined"),
+                        "ephemeralStorage": svc_cont.get("ephemeralStorage", "undefined"),
+                        "livenessProbe": container.get("livenessProbe", "undefined"),
+                        "readinessProbe": svc_cont.get("readinessProbe", "undefined")
+                    }
+                },
+                "configListener": _expand(spec.get("configListener", {}), ["enabled"]),
+                "scheduling": _expand(spec.get("scheduling", {}), ["affinity"])
+            },
+            "status": _expand(status, ["qosClass", "operand", "conditions", "phase"])
+        }
     }
-    provided_keys = set(spec.keys())
-    unknowns = provided_keys - known
-    if unknowns:
-        return f"SPEC UNKNOWN: Fields not recognized: {', '.join(unknowns)}"
-    return None
 
+    if debug:
+        print("\n--- [DEBUG] MODE: %s ---" % ("LEGACY HARDCODED" if legacy else "MODULAR TREE WALKER"))
+        if not legacy:
+            print("Synthetic Context:")
+            print(json.dumps(full_context, indent=2))
+        print("------------------------------------------\n")
+
+    # QoS Priority: Status > Spec
+    live_qos = status.get("qosClass")
+    if not live_qos or live_qos == "undefined":
+        is_guaranteed = (cpu_map['limits'] == cpu_map['requests'] and cpu_map['limits'] != "undefined")
+        live_qos = "Guaranteed" if is_guaranteed else "Burstable"
+
+    if not legacy:
+        return check_full_logic_tree(full_context), {"qos_class": live_qos}
+    else:
+        # This would call your old hardcoded function
+        return [], {"qos_class": live_qos}
+# V2.1
 def check_full_logic(spec, meta, container, to_gb, debug=False):
     findings = []
     service_spec = spec.get('service', {})

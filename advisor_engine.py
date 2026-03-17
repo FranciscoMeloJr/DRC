@@ -34,72 +34,55 @@ class InfinispanDRCAdvisor:
         return v
 
     def analyze(self, debug=True):
-        results = []
-        if isinstance(self.data, dict) and 'items' in self.data:
-            items = self.data['items']
-        else:
-            items = [self.data] if self.data else []
+            results = []
+            if isinstance(self.data, dict) and 'items' in self.data:
+                items = self.data['items']
+            else:
+                items = [self.data] if self.data else []
 
-        for item in items:
-            if not isinstance(item, dict) or 'spec' not in item: continue
+            for item in items:
+                if not isinstance(item, dict) or 'spec' not in item: continue
 
+                spec = item.get('spec', {})
+                meta = item.get('metadata', {})
+                container = spec.get('container', {})
+                status = item.get('status', {})
 
-            spec = item.get('spec', {})
-            meta = item.get('metadata', {})
-            cont = spec.get('container', {})
-            res = cont.get('resources', {})
-            lim = res.get('limits', {})
-            req = res.get('requests', {})
+                # 1. Get standard resource maps
+                mem_map = rules.split_res(container.get('memory'))
 
-            # Extract Resource Values
-            # 1. Capture Limits (remains the same)
-            cpu_l = cont.get('cpu') or lim.get('cpu')
-            mem_l = cont.get('memory') or lim.get('memory')
+                # 2. Run Modular Rules & Get Metadata
+                raw_findings, metadata = rules.check_full_logic_caller(
+                    spec, meta, status, container, self.to_gb, False, debug=debug
+                )
 
-            # 2. Capture Requests: Default to -1 if missing
-            cpu_r = req.get('cpu') if req.get('cpu') is not None else -1
-            mem_r = req.get('memory') if req.get('memory') is not None else -1
+                # 3. Handle Version & Heap Ratio
+                ver = str(spec.get('version', '0'))
+                is_old_ver = ver < "8.4.5"
+                heap_ratio = 0.25 if is_old_ver else 0.50
 
-            # Cgroups v2 / Version Logic
-            ver = str(spec.get('version', '0'))
-            is_old_ver = ver < "8.4.5"
-            heap_ratio = 0.25 if is_old_ver else 0.50
+                # 4. Calculate Heap Display
+                limit_mem = mem_map.get('limits', 0)
+                if limit_mem != "undefined" and limit_mem != 0:
+                    heap_val = self.to_gb(limit_mem) * heap_ratio
+                    heap_display = f"{heap_val:.2f}Gi"
+                else:
+                    heap_display = f"{int(heap_ratio*100)}% of Host RAM"
 
-            # QoS Determination (Validated Logic)
-            # Default to Best Effort (The "Important" Risk)
-            qos, qos_id = "BestEffort", "qos_important"
-            heap_display = f"{int(heap_ratio*100)}% of Host RAM"
-
-            if cpu_r or mem_r:
-                # It has requests, so it's at least Burstable
-                qos, qos_id = "Burstable", "qos_warning"
-                # Calculate heap based on the defined memory limit
-                mem_val = mem_l if mem_l else 0
-                heap_display = f"{self.to_gb(mem_val) * heap_ratio:.2f}Gi"
-                
-                # Check for promotion to Guaranteed
-                if cpu_l and mem_l and cpu_l == cpu_r and mem_l == mem_r:
-                    qos, qos_id = "Guaranteed", "qos_notice"
-
-            # Run the Logical Registry
-            raw_ids = rules.check_full_logic(spec, meta, cont, self.to_gb)
-
-            if qos_id not in raw_ids:
-                raw_ids.append(qos_id)
-
-            if debug:
-                print(raw_ids)
-
-            results.append({
-                "name": meta.get('name', 'Unknown'),
-                "namespace": meta.get('namespace', 'default'),
-                "operator": meta.get('labels', {}).get('operator.infinispan.org/version', 'N/A'),
-                "operand": ver,
-                "replicas": spec.get('replicas', 0),
-                "exposed": "Yes" if spec.get('expose') else "No",
-                "encryption": spec.get('security', {}).get('endpointEncryption', {}).get('type', 'Disabled'),
-                "qos": qos,
-                "heap": f"{heap_display} (cgv2 risk)" if is_old_ver else heap_display,
-                "findings": [self.kcs_db.get(fid, {'crit': 'NOTICE', 'ref': fid}) for fid in raw_ids],
-            })
-        return results
+                # 5. Build Final Report Entry
+                results.append({
+                    "name": meta.get('name', 'Unknown'),
+                    "namespace": meta.get('namespace', 'default'),
+                    "operator": meta.get('labels', {}).get('operator.infinispan.org/version', 'N/A'),
+                    "operand": ver,
+                    "replicas": spec.get('replicas', 0),
+                    "exposed": "Yes" if spec.get('expose') else "No",
+                    "encryption": spec.get('security', {}).get('endpointEncryption', {}).get('type', 'Disabled'),
+                    "qos": metadata.get("qos_class", "Burstable"),
+                    "heap": f"{heap_display} (cgv2 risk)" if is_old_ver else heap_display,
+                    "findings": [
+                        f if isinstance(f, dict) else self.kcs_db.get(f, {'crit': 'NOTICE', 'ref': f}) 
+                        for f in raw_findings
+                    ],
+                })
+            return results

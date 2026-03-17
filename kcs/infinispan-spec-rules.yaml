@@ -1,0 +1,377 @@
+# =============================================================================
+# DRC Advisor Rules Registry v3.5 - COMPLETE 180+ LINE PRODUCTION SPEC
+# Pathing strictly follows: oc explain infinispans.spec --recursive
+# =============================================================================
+
+infinispan:
+  metadata:
+    # --- 1. Top-level Metadata Fields ---
+    name:
+      naming_convention_risk:
+        condition: "not str(obj).startswith('example')"
+        criticality: NOTICE
+        reference: "Naming: CR name does not start with 'example'. Ensure this matches deployment docs."
+        fix: "Rename the CR to follow the organizational naming prefix."
+    
+    namespace:
+      production_namespace_check:
+        condition: "str(obj) == 'default'"
+        criticality: WARNING
+        reference: "Namespace Risk: Deploying Infinispan in the 'default' namespace is not recommended for production."
+        fix: "Deploy the Infinispan cluster in a dedicated namespace with appropriate RBAC."
+
+    labels:
+      monitoring_missing:
+        condition: "obj == 'undefined' or .get('prometheus.io/scrape') != 'true'"
+        criticality: IMPORTANT
+        reference: "Monitoring: Prometheus scrape labels or annotations are missing."
+        kcs: "KCS 6991230"
+        fix: "Add 'prometheus.io/scrape: true' to the metadata labels."
+      fips_host:
+        condition: "obj != 'undefined' and .get('fips-enabled') == 'true'"
+        criticality: NOTICE
+        reference: "Host is FIPS-enabled. Ensuring Infinispan compliance."
+        kcs: "KCS 6907521"
+
+  spec:
+    # --- 1. Cluster Scaling & Quorum ---
+    replicas:
+      single_node_risk:
+        condition: "== 1"
+        criticality: CRITICAL
+        reference: "There is only one pod in this cluster."
+        kcs: "N/A"
+        fix: "Add more than one pod for production environments."
+      quorum_risk:
+        condition: "obj != 'undefined' and int(obj) % 2 == 0"
+        criticality: CRITICAL
+        reference: "Quorum requirements and even-node split-brain risk."
+        kcs: "KCS 6955511"
+        fix: "Have enough quorum and use an odd number of nodes to avoid split brain."
+
+    # --- 2. Scheduling & Availability (Deep Affinity) ---
+    scheduling:
+      affinity:
+        podAntiAffinity:
+          ha_risk:
+            condition: "obj == 'undefined'"
+            criticality: IMPORTANT
+            reference: "The pods could be deployed in the same hosts. No anti-affinity detected."
+            kcs: "N/A"
+            fix: "Use anti-affinity rules to spread pods across different nodes."
+          affinity_soft:
+            condition: "obj != 'undefined' and 'preferredDuringSchedulingIgnoredDuringExecution' in str(obj)"
+            criticality: WARNING
+            reference: "Availability: podAntiAffinity is set to 'preferred' (soft). Pods may co-locate if node resources are tight."
+            kcs: "KCS 6991230"
+            fix: "Consider using 'required' (hard) anti-affinity rules for production."
+          affinity_hard:
+            condition: "obj != 'undefined' and 'requiredDuringSchedulingIgnoredDuringExecution' in str(obj)"
+            criticality: NOTICE
+            reference: "Best Practice: podAntiAffinity is set to 'required' (hard). Ensures max availability."
+            kcs: "N/A"
+            fix: "Maintain current anti-affinity setting."
+          affinity_weak:
+            condition: "obj != 'undefined' and 'kubernetes.io/hostname' not in str(obj)"
+            criticality: IMPORTANT
+            reference: "Availability Risk: Using a weak topologyKey or 'Preferred' anti-affinity."
+            kcs: "KCS 6991230"
+            fix: "Use 'kubernetes.io/hostname' as the topologyKey with 'required' anti-affinity."
+
+    # --- 3. Automation & Legacy Features ---
+    autoscale:
+      autoscale_invalid:
+        condition: "obj != 'undefined'"
+        criticality: WARNING
+        reference: "AUTOSCALE: Useless for DataGrid service types and risky for state transfer."
+        kcs: "N/A"
+        fix: "Remove Autoscale configuration from the Infinispan CR."
+
+    cloudEvents:
+      cloudevents_deprecated:
+        condition: "obj != 'undefined'"
+        criticality: NOTICE
+        reference: "DEPRECATED: cloudEvents used. This feature is scheduled for removal."
+        kcs: "N/A"
+        fix: "Consult documentation to migrate away from CloudEvents."
+
+    # --- 4. Replication & Cross-Site ---
+    configListener:
+      enabled:
+        bidirectional_disabled:
+          condition: "== False or obj == 'undefined'"
+          criticality: IMPORTANT
+          reference: "KCS 6973004: spec.configListener is missing or disabled. Bidirectional replication is disabled."
+          kcs: "KCS 6973004"
+          fix: "Enable configListener to support bidirectional x-site replication."
+      logging:
+        level:
+          cl_debug:
+            condition: "== 'DEBUG'"
+            criticality: NOTICE
+            reference: "ConfigListener DEBUG logging is active (small performance impact)."
+            kcs: "KCS 6973004"
+            fix: "Set logging level to INFO if DEBUG is not strictly required."
+    
+    # --- 5. configMap ---
+    configMapName:
+      low_cpu_limit:
+                condition: "obj != 'undefined'"
+                criticality: WARNING
+                reference: "This application is using a custom configMap."
+                kcs: "N/A"
+                fix: "N/A"
+    # --- 5. Runtime & Resource Allocation ---
+    container:
+      # --- 1. Guaranteed QoS State ---
+      qos_guaranteed:
+        condition: "spec['container']['cpu']['limits'] == spec['container']['cpu']['requests'] and spec['container']['memory']['limits'] == spec['container']['memory']['requests'] and spec['container']['cpu']['limits'] != 'undefined'"
+        criticality: INFO
+        reference: "STATE_QOS_GUARANTEED"
+
+      # --- 2. Burstable QoS State ---
+      qos_burstable:
+        condition: "spec['container']['cpu']['limits'] != spec['container']['cpu']['requests'] or spec['container']['memory']['limits'] != spec['container']['memory']['requests']"
+        criticality: INFO
+        reference: "STATE_QOS_BURSTABLE"
+
+      # --- 3. Best-Effort QoS State ---
+      qos_best_effort:
+        condition: "spec['container']['cpu']['limits'] == 'undefined' and spec['container']['memory']['limits'] == 'undefined'"
+        criticality: INFO
+        reference: "STATE_QOS_BESTEFFORT"
+      cpu:
+        limits:
+          low_cpu_limit:
+            condition: "obj != 'undefined' and (float(str(obj).replace('m','')) < 2000 if 'm' in str(obj) else float(obj) < 2)"
+            criticality: WARNING
+            reference: "KCS 7012354: CPU starvation impacts on JGroups/Clustering."
+            kcs: "KCS 7012354"
+            fix: "Increase CPU settings to at least 2.0 cores."
+
+        requests:
+          qos_mismatch_cpu:
+            # 'spec.container.cpu.limits' is now easily accessible
+            condition: "obj != 'undefined' and obj != spec['container']['cpu']['limits']"
+            criticality: WARNING
+            reference: "KCS 6991230: CPU Request does not match Limit (Burstable QoS)."
+
+      memory:
+        limits:
+          memory_limit_missing:
+            condition: "obj == 'undefined'"
+            criticality: WARNING
+            reference: "Memory sizing and JVM overhead for Data Grid. No explicit limit set."
+            kcs: "N/A"
+            fix: "Set explicit memory requests and limits."
+        requests:
+          qos_mismatch_mem:
+            condition: "obj != 'undefined' and obj != spec['container']['memory']['limits']"
+            criticality: CRITICAL
+            reference: "KCS 6991230: Memory Request does not match Limit. Risk of OOMKill."
+
+      extraJvmOpts:
+        jvm_opts_detect:
+          condition: "obj != 'undefined'"
+          criticality: NOTICE
+          reference: "Manual: extraJvmOpts detected. These options are tuning the JVM behavior."
+          kcs: "N/A"
+          fix: "Ensure manual options do not conflict with Operator-managed heap."
+        xmx_detected:
+          condition: "obj != 'undefined' and ('-Xmx' in str(obj) or '-Xms' in str(obj))"
+          criticality: CRITICAL
+          reference: "-Xmx or -Xms detected in extraJvmOpts. The Operator should manage heap sizing."
+          kcs: "KCS 7012354"
+          fix: "Remove Xmx/Xms from extraJvmOpts; sizing is handled by the Operator via memory limits."
+        g1gc_recommended:
+          condition: "obj != 'undefined' and 'UseG1GC' not in str(obj)"
+          criticality: NOTICE
+          reference: "Tuning: Heap > 3GB detected. Use -XX:+UseG1GC to optimize garbage collection."
+          kcs: "KCS x"
+          fix: "G1GC has better performance than ParallelGC for Data Grid heaps."
+        fips_requirement:
+          condition: "obj != 'undefined' and '-Dcom.redhat.fips=false' not in str(obj)"
+          criticality: IMPORTANT
+          reference: "FIPS Mode: Host is FIPS-enabled. To disable at DG level, use -Dcom.redhat.fips=false."
+          kcs: "KCS 6907521"
+          fix: "Ensure FIPS compliance or explicitly disable if required by the application."
+
+      resources:
+        limits:
+          prod_resources_missing:
+            condition: "obj == 'undefined' or .get('cpu') == None"
+            criticality: CRITICAL
+            reference: "Production environment should have explicit CPU and Memory limits."
+            fix: "Set explicit memory and CPU requests/limits."
+          qos_mismatch:
+            condition: "obj != 'undefined' and obj != .get('requests')"
+            criticality: CRITICAL
+            reference: "KCS 6991230: QoS Mismatch (Limits != Requests)."
+            kcs: "KCS 6991230"
+            fix: "Set Requests and Limits to the same values for Guaranteed QoS."
+
+    # --- 6. External Access & Networking ---
+    expose:
+      type:
+        expose_type_risk:
+          condition: "== 'Route'"
+          criticality: WARNING
+          reference: "KCS 6993061: External access configuration via Route (using Service)."
+          kcs: "KCS 6993061"
+          fix: "Verify Route timeouts and use DataGrid service type where possible."
+
+    # --- 7. Security & Management ---
+    security:
+      endpointEncryption:
+        encryption_missing:
+          condition: "obj == 'undefined'"
+          criticality: CRITICAL
+          reference: "KCS 7017543: Details on configuring and verifying Data Grid encryption types."
+          kcs: "KCS 7017543"
+          fix: "Configure endpoint encryption to secure data in transit."
+
+    jmx:
+      enabled:
+        jmx_enabled_check:
+          condition: "== True"
+          criticality: NOTICE
+          reference: "JMX Exposer: Enabled. Ensure appropriate security measures are in place."
+          kcs: "N/A"
+          fix: "Secure JMX endpoints using endpointSecretName."
+
+    # --- 8. Service Definition & Probes ---
+    service:
+      type:
+        deprecated_cache_check:
+          # Logic: 
+          # 1. If explicitly 'Cache' -> WARNING
+          # 2. If 'undefined' AND version < '8.4' -> WARNING (because it defaults to 'Cache')
+          condition: >
+            obj == 'Cache' or 
+            (obj == 'undefined' and spec.get('version', '0') < '8.4')
+          criticality: IMPORTANT
+          reference: "KCS 6972352: Service type 'Cache' is deprecated or used as default."
+          fix: "Explicitly set spec.service.type to 'DataGrid'."
+          kcs: "KCS 6972352"
+        
+        default_datagrid_notice:
+          # Logic: If undefined and version >= 8.4 -> It's safely defaulting to DataGrid
+          condition: "obj == 'undefined' and spec.get('version', '0') >= '8.4'"
+          criticality: NOTICE
+          reference: "Service type is defaulting to 'DataGrid' (Standard for 8.4+)."
+      container:
+        storage:
+          storage_missing:
+            condition: "obj == 'undefined'"
+            criticality: WARNING
+            reference: "RESOURCE RISK: Persistent storage is not defined."
+        ephemeralStorage:
+          ephemeral_warning: # Renamed for clarity
+            # Handles both Boolean (True) and String ('true')
+            condition: "obj == True or obj == 'true'"
+            criticality: WARNING
+            reference: "RESOURCE RISK: Using ephemeral storage. Data will be lost on pod restart."
+        livenessProbe:
+          probes_missing:
+            condition: "obj == 'undefined'"
+            criticality: WARNING
+            reference: "STABILITY: Custom probes missing. Default settings may cause pods to be killed."
+            fix: "Review custom liveness and readiness probe configurations."
+        readinessProbe: # ADDED THIS
+          readiness_missing:
+            condition: "obj == 'undefined'"
+            criticality: IMPORTANT
+            reference: "STABILITY: Readiness probe missing. State transfer may be unreliable."
+            fix: "Review custom liveness and readiness probe configurations."
+      sites:
+        local:
+          discovery:
+            xsite_gossip_risk:
+              condition: "obj != 'undefined' and .get('launchGossipRouter') == False"
+              criticality: IMPORTANT
+              reference: "KCS 7021134: Cross-site replication requires 'relay-node' or 'GossipRouter'."
+              kcs: "KCS 7021134"
+              fix: "Set launchGossipRouter to true for cross-site discovery."
+
+    # --- 9. Maintenance & Versioning ---
+    upgrades:
+      type:
+        rolling_upgrade_pressure:
+          condition: "== 'Rolling'"
+          criticality: NOTICE
+          reference: "Upgrade type 'Rolling' can cause state transfer pressure in large clusters."
+          kcs: "N/A"
+          fix: "Monitor cluster performance during rolling upgrades."
+
+    version:
+      version_old:
+        condition: "obj != 'undefined' and str(obj) < '8.4'"
+        criticality: WARNING
+        reference: "KCS 7031245: Operand version < 8.4 detected."
+        kcs: "KCS 7031245"
+        fix: "Upgrade to Operand version 8.4.x or higher."
+
+    logging:
+      level:
+        drc_log:
+          condition: "obj != 'undefined' and obj in ['DEBUG', 'TRACE']"
+          criticality: WARNING
+          reference: "Performance Risk: DEBUG/TRACE logging enabled."
+          kcs: "KCS 6991230"
+          fix: "Switch to INFO or WARN logging levels."
+
+  # --- 10. Status Root (Ground Truth) ---
+  status:
+    operand:
+      version:
+        cgv2_risk_status:
+          condition: "obj != 'undefined' and str(obj) < '8.4.5'"
+          criticality: IMPORTANT
+          reference: "Live Operand version < 8.4.5. Risk of 25% heap limit on cgroups v2."
+          kcs: "KCS 6991230"
+      deprecated:
+        operand_deprecated:
+          condition: "== True"
+          criticality: WARNING
+          reference: "The running Operand version is marked as deprecated by the operator."
+    conditions:
+      well_formed_error:
+        condition: "obj != 'undefined' and any(c.get('type') == 'WellFormed' and c.get('status') != 'True' for c in obj)"
+        criticality: CRITICAL
+        reference: "Cluster is not WellFormed. Check pod logs for state transfer failures."
+    replicas:
+      split_brain_running:
+        condition: "obj != 'undefined' and int(obj) % 2 == 0"
+        criticality: CRITICAL
+        reference: "Running cluster has an even number of pods. High risk of split-brain."
+
+      reconciliation_drift:
+        # Compares the status value (obj) to the desired spec value
+        condition: "obj != 'undefined' and obj != spec.get('replicas')"
+        criticality: WARNING
+        reference: "Reconciliation Drift: Running replicas do not match the desired spec. The cluster may be scaling or stuck."
+        fix: "Check 'oc get events' and pod descriptions to see why the Operator cannot reach the desired replica count."
+    podStatus:
+      starting:
+        pods_stuck_starting:
+          condition: "obj != 'undefined' and len(obj) > 0"
+          criticality: WARNING
+          reference: "Pods are currently in 'Starting' phase. Cluster is not yet stable."
+
+# =============================================================================
+# LOGIC PATTERNS - Behavior Based (Expansion Markers)
+# =============================================================================
+
+logic_patterns:
+  cgv2_risk:
+    condition: "obj != 'undefined' and str(obj) < '8.4.5'"
+    criticality: IMPORTANT
+    reference: "Version < 8.4.5 detected. On cgroups v2, default heap limited to 25%."
+    kcs: "KCS 6991230"
+    fix: "Use Infinispan 8.4.5+ for improved cgroups v2 handling."
+  eviction_missing:
+    condition: "obj == 'undefined'"
+    criticality: WARNING
+    reference: "KCS 6954312: Cache lacks eviction/max-size. Risk of OOM."
+    kcs: "KCS 6954312"
+    fix: "Configure eviction or max-size within the service container spec."
