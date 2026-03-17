@@ -4,6 +4,7 @@ import advisor_rules as rules
 class InfinispanDRCAdvisor:
     def __init__(self):
         self.data = None
+        self.eval_undefined = True
         self.kcs_db = {}
         self._load_kcs()
 
@@ -56,8 +57,9 @@ class InfinispanDRCAdvisor:
                     # Recursively build the path string
                     self._flatten_to_db(v, f"{path_str}{k}.")
 
-    def load_content(self, yaml_content):
+    def load_content(self, yaml_content, eval_header=True):
         self.data = yaml.safe_load(yaml_content)
+        self.eval_undefined = (str(eval_header).lower() == 'true')
 
     def to_gb(self, size_str):
         if not size_str: return 0.0
@@ -89,8 +91,7 @@ class InfinispanDRCAdvisor:
 
                 # 2. Run Modular Rules & Get Metadata
                 raw_findings, metadata = rules.check_full_logic_caller(
-                    spec, meta, status, container, self.to_gb, False, debug=debug
-                )
+                    spec, meta, status, container, self.to_gb, False, debug, self.eval_undefined)
 
                 # 3. Handle Version & Heap Ratio
                 ver = str(spec.get('version', '0'))
@@ -116,6 +117,7 @@ class InfinispanDRCAdvisor:
                     "encryption": spec.get('security', {}).get('endpointEncryption', {}).get('type', 'Disabled'),
                     "qos": metadata.get("qos_class", "Burstable"),
                     "heap": f"{heap_display} (cgv2 risk)" if is_old_ver else heap_display,
+                    "eval_header": self.eval_undefined,
                     "findings": [
                         f if isinstance(f, dict) else self.kcs_db.get(f, {'crit': 'NOTICE', 'ref': f}) 
                         for f in raw_findings

@@ -23,16 +23,23 @@ def _expand(obj, keys):
     if not isinstance(obj, dict): return "undefined"
     return {k: obj.get(k, "undefined") for k in keys}
 
-def _eval_rule(obj, rule, findings, full_context):
-    """Evaluates a leaf rule with full tree visibility."""
+def _eval_rule(obj, rule, findings, full_context, eval_undefined=True):
+    """v2.2: Evaluates a leaf rule with a noise-filter toggle."""
+    
+    # --- THE GATEKEEPER ---
+    # If the user chose STANDARD mode (False) AND the field is missing, 
+    # we stop right here and don't add the finding.
+    if not eval_undefined and obj == 'undefined':
+        return
+    # ----------------------
+
     cond = rule.get('condition')
     spec_data = full_context.get('infinispan', {}).get('spec', {})
     
     # Clean up the condition string
     cond = str(cond).strip()
     
-    # If the condition doesn't start with 'obj' or a logical operator, 
-    # we assume it needs the 'obj' prefix (e.g., "== 1" -> "obj == 1")
+    # Prepare the evaluation string
     eval_str = cond if "obj" in cond else f"obj {cond}"
     
     try:
@@ -42,7 +49,7 @@ def _eval_rule(obj, rule, findings, full_context):
             "str": str, "float": float, "int": int, "any": any, "len": len
         }
         
-        # Use a restricted global dict for safety
+        # Evaluate logic safely
         if eval(eval_str, {"__builtins__": None}, eval_locals):
             findings.append({
                 "crit": rule.get('criticality', 'NOTICE'),
@@ -50,35 +57,33 @@ def _eval_rule(obj, rule, findings, full_context):
                 "fix": rule.get('fix', ''),
                 "kcs": rule.get('kcs', '')
             })
-    except Exception as e:
-        # During debugging, uncomment this to see why a rule failed:
-        # print(f"DEBUG: Eval Failed for [{eval_str}] with obj=[{obj}]: {e}")
+    except Exception:
         pass
 
-def _walk_tree(user_node, rule_node, findings, full_context):
-    """Recursive tree walker."""
-    if not isinstance(rule_node, dict): return
-    
-    for key, value in rule_node.items():
-        if isinstance(value, dict) and 'condition' in value:
-            _eval_rule(user_node, value, findings, full_context)
-        elif isinstance(value, dict):
-            if isinstance(user_node, dict) and key in user_node:
-                _walk_tree(user_node[key], value, findings, full_context)
-            else:
-                # Keep current user_node context if key doesn't match data structure
-                _walk_tree(user_node, value, findings, full_context)
+def _walk_tree(data_node, rule_node, findings, full_context, eval_undefined=True):
+    """v2.2: Recursively crawls the tree, carrying the toggle baton."""
+    if isinstance(rule_node, dict):
+        if 'condition' in rule_node:
+            # 1. Forward to the Evaluator
+            _eval_rule(data_node, rule_node, findings, full_context, eval_undefined=eval_undefined)
+        else:
+            for key, next_rule in rule_node.items():
+                # Get next data piece
+                next_data = data_node.get(key, 'undefined') if isinstance(data_node, dict) else 'undefined'
+                
+                # 2. CRITICAL: Pass the baton into the NEXT level of recursion
+                _walk_tree(next_data, next_rule, findings, full_context, eval_undefined=eval_undefined)
 
-def check_full_logic_tree(context):
+def check_full_logic_tree(context, eval_undefined=True):
     findings = []
     rules_path = 'kcs/infinispan-spec-rules.yaml'
     if not os.path.exists(rules_path): return []
     with open(rules_path, 'r') as f:
         registry = yaml.safe_load(f)
-    _walk_tree(context, registry, findings, context)
+    _walk_tree(context, registry, findings, context, eval_undefined)
     return findings
 
-def check_full_logic_caller(spec, meta, status, container, to_gb, legacy=False, debug=True):
+def check_full_logic_caller(spec, meta, status, container, to_gb, legacy=False, debug=True, eval_undefined=True):
     cpu_map = split_res(container.get("cpu"))
     mem_map = split_res(container.get("memory"))
 
@@ -132,11 +137,12 @@ def check_full_logic_caller(spec, meta, status, container, to_gb, legacy=False, 
         live_qos = "Guaranteed" if is_guaranteed else "Burstable"
 
     if not legacy:
-        return check_full_logic_tree(full_context), {"qos_class": live_qos}
+        return check_full_logic_tree(full_context, eval_undefined), {"qos_class": live_qos}
     else:
         # This would call your old hardcoded function
         return [], {"qos_class": live_qos}
-# V2.1
+
+# Legacy V2.1
 def check_full_logic(spec, meta, container, to_gb, debug=False):
     findings = []
     service_spec = spec.get('service', {})

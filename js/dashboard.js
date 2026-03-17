@@ -17,6 +17,7 @@ window.onload = function() {
     // Utility Dock Elements (v2.2)
     const onlineToggle = document.getElementById('onlineToggle');
     const toggleText = document.getElementById('toggleText');
+
     const profileSelect = document.getElementById('profileSelect');
     const viewRulesBtn = document.getElementById('viewRulesBtn');
     const ruleExampleBtn = document.getElementById('ruleExampleBtn');
@@ -37,7 +38,7 @@ window.onload = function() {
     // 2. STATE MANAGEMENT
     // ==========================================
     let currentProfile = 'generic';
-    let isOnlineMode = false;
+    let isOnlineMode = onlineToggle ? onlineToggle.checked : false;
 
     // ==========================================
     // 3. MODAL LOGIC (FIXED)
@@ -98,7 +99,7 @@ window.onload = function() {
         onlineToggle.onchange = function() {
             isOnlineMode = this.checked;
             if (toggleText) {
-                toggleText.innerText = isOnlineMode ? "ONLINE" : "OFFLINE";
+                toggleText.innerText = isOnlineMode ? "Strict" : "Standard";
                 toggleText.style.color = isOnlineMode ? "#ee0000" : "#333";
             }
         }
@@ -179,8 +180,8 @@ window.onload = function() {
             body: fileContent, // Sending raw YAML/XML content
             headers: {
                 'X-DRC-Profile': currentProfile,
-                'X-DRC-Online': isOnlineMode,
-                'Content-Type': 'text/plain' // Tells Python exactly what this is
+                'X-DRC-Eval-Undefined': isOnlineMode.toString(),
+                'Content-Type': 'text/plain'
             }
         });
 

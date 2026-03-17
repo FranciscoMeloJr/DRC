@@ -47,7 +47,7 @@ except ImportError as e:
     traceback.print_exc()
     sys.exit(1)
 
-PORT = 8080
+PORT = 8081
 
 class BridgeHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self, debug=True):
@@ -98,9 +98,12 @@ class BridgeHandler(http.server.SimpleHTTPRequestHandler):
             content_length = int(self.headers['Content-Length'])
             yaml_data = self.rfile.read(content_length).decode('utf-8')
 
+            eval_header = self.headers.get('X-DRC-Eval-Undefined', 'false').lower()
+            eval_undefined = (eval_header == 'false')
+
             # Run the Python Engine
             engine = InfinispanDRCAdvisor()
-            engine.load_content(yaml_data)
+            engine.load_content(yaml_data, eval_header=eval_undefined)
             results = engine.analyze()
             print(f"DEBUG DATA: {json.dumps(results, indent=2)}")
 

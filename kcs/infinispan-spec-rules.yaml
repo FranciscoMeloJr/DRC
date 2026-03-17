@@ -10,7 +10,7 @@ infinispan:
       naming_convention_risk:
         condition: "not str(obj).startswith('example')"
         criticality: NOTICE
-        reference: "Naming: CR name does not start with 'example'. Ensure this matches deployment docs."
+        reference: "Naming: CR name does start with 'example'. Ensure this matches deployment docs."
         fix: "Rename the CR to follow the organizational naming prefix."
     
     namespace:
