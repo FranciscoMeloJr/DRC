@@ -26,7 +26,7 @@ ENV PYTHONPATH="/opt/drc"
 # 8. Switch to the non-root user
 USER 1001
 
-EXPOSE 8081
+EXPOSE 8080
 
 # 10. Run the bridge script with unbuffered output
 CMD ["python", "-u", "js/bridge_server.py"]
