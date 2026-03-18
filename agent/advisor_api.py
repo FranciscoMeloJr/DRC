@@ -1,5 +1,15 @@
-import os, sys, datetime, csv, json
+import os
+import sys
+import datetime
+import csv
+import json
+
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if parent_dir not in sys.path:
+    sys.path.append(parent_dir)
+
 from advisor_engine import DRCAdvisor
+
 
 def analise_yaml(file_path=None):
     theme = {}

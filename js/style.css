@@ -264,3 +264,59 @@ input:checked + .slider:before { transform: translateX(16px); }
 #drc-bot-input { flex: 1; border: 1px solid #ccc; border-radius: 4px; padding: 8px 12px; margin-right: 8px; font-size: 0.9rem; }
 #drc-bot-send { background: #ee0000; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.85rem; }
 #drc-bot-send:hover { background: #cc0000; }
+
+/* Bot reply */
+
+#tree-viewer {
+    background-color: #0d0d0d; /* Slightly lighter than pure black */
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 20px;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    overflow-x: auto;
+}
+
+.tree-node {
+    margin-left: 20px;
+    border-left: 1px solid #444;
+    padding-left: 12px;
+    position: relative;
+}
+
+/* The connector line effect */
+.tree-node::before {
+    content: "";
+    position: absolute;
+    top: 12px;
+    left: 0;
+    width: 10px;
+    border-top: 1px solid #444;
+}
+
+.tree-branch {
+    color: #ee0000; /* Red Hat Red */
+    cursor: pointer;
+    font-weight: bold;
+    display: block;
+    padding: 2px 0;
+    user-select: none;
+}
+
+.tree-branch:hover {
+    color: #ff3333;
+}
+
+.tree-leaf {
+    display: flex;
+    padding: 2px 0;
+    font-size: 0.9em;
+}
+
+.prop-key {
+    color: #66a3ff; /* Electric Blue */
+    margin-right: 8px;
+}
+
+.prop-val {
+    color: #ffffff;
+}

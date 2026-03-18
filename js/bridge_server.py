@@ -3,6 +3,7 @@ import socketserver
 import json
 import os
 import sys
+from pathlib import Path
 
 # --- DEBUG INSTRUMENTATION ---
 print("--- CONTAINER PATH DEBUG ---")
@@ -27,17 +28,12 @@ print(f"File exists?: {os.path.exists(target_file)}")
 print("--- END DEBUG ---\n")
 # --- END DEBUG ---
 
-
 # Add the parent directory to the path so we can import the engine
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+agent_dir = os.path.join(parent_dir, 'agent')
 
-#try:
-#    from advisor_engine import DRCAdvisor
-#except ImportError:
-#    print("Error: advisor_engine.py not found in the parent directory.")
-#    sys.exit(1)
+from agent.agent import chat_with_tools # Ensure your pathing is correct
 
-# Updated try/except for bridge_server.py
 try:
     from advisor_engine import DRCAdvisor
     print("SUCCESS: advisor_engine imported.")
@@ -51,27 +47,23 @@ PORT = 8080
 
 class BridgeHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self, debug=True):
-        # 1. Handle Bot Synthesis Endpoint
-        if self.path == '/api/bot-reply':
+        # 1. Handle Favicon specifically to stop 404s
+        if self.path in ['/favicon.ico', '/static/drc.png']:
             try:
-                self.send_response(200)
-                self.send_header('Content-Type', 'text/plain')
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.end_headers()
-                
-                # Check if we have results to synthesize
-                if not hasattr(advisor_instance, 'last_results') or not advisor_instance.last_results:
-                    response = "I haven't analyzed any files yet! Please upload a YAML/XML so I can draft a reply for you. o/"
-                else:
-                    # Call the synthesis logic (Make sure this exists in your advisor_engine.py)
-                    # For now, we'll use a helper function or the engine's internal method
-                    response = self.generate_synthesis(advisor_instance.last_results)
-                
-                self.wfile.write(response.encode('utf-8'))
-                return
+                # Path logic: bridge_server.py in drc/js/
+                js_dir = Path(__file__).parent.absolute()
+                icon_path = js_dir.parent / 'static' / 'drc.png'
+
+                if icon_path.exists():
+                    img_data = icon_path.read_bytes()
+                    self.send_response(200)
+                    self.send_header('Content-type', 'image/png')
+                    self.send_header('Content-Length', len(img_data))
+                    self.end_headers()
+                    self.wfile.write(img_data)
+                    return
             except Exception as e:
-                self.send_error(500, f"Synthesis Error: {e}")
-                return
+                print(f"[FAVICON ERROR]: {e}")
 
         # 2. Handle the Logo/Static files (Since they live outside the /js folder)
         if self.path.startswith('/static/'):
@@ -116,7 +108,57 @@ class BridgeHandler(http.server.SimpleHTTPRequestHandler):
         return super().do_GET()
 
     def do_POST(self):
-        if self.path == '/api/analyze':
+        #1. Handle Bot Synthesis Endpoint
+        if self.path == '/api/bot-chat':
+            # 1. THE GUARD: Check environment before doing anything else
+                required_keys = ["MODEL_API", "MODEL_ID", "USER_KEY"]
+                if not all(os.getenv(k) for k in required_keys):
+                    self.send_response(200) # Request was received, but we have a status to report
+                    self.send_header('Content-type', 'application/json')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"response": -1}).encode())
+                    return -1
+
+                # 2. PROCEED: If keys exist, continue with your existing agent call logic
+                try:
+                    content_length = int(self.headers.get('Content-Length', 0))
+                    post_data = self.rfile.read(content_length).decode('utf-8')
+                    payload = json.loads(post_data)
+                    
+                    user_message = payload.get("message", "")
+                    chat_history = payload.get("history", [])
+                    # Pull the context from sessionStorage sent by the UI
+                    context_data = payload.get("context", None)
+
+                    # Pass context to the agent so it "sees" the YAML findings
+                    ai_response, updated_history = chat_with_tools(user_message, chat_history, context=context_data)
+                    
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/json')
+                    self.end_headers()
+                    
+                    response_body = {
+                        "reply": ai_response,
+                        "history": updated_history
+                    }
+                    self.wfile.write(json.dumps(response_body).encode())
+                
+                except Exception as e:
+                    # Log the real error to your console for debugging
+                    print(f"[AGENT ERROR]: {str(e)}")
+                    
+                    # Send a polite "Friendly" error back to the Chat UI
+                    self.send_response(200) # Still 200 so the fetch doesn't crash the UI
+                    self.send_header('Content-type', 'application/json')
+                    self.end_headers()
+                    
+                    fail_msg = {
+                        "reply": "I'm having a hard time with that request right now. Please check my connection to the model API.",
+                        "history": chat_history # Keep history intact so they can try again
+                    }
+                    self.wfile.write(json.dumps(fail_msg).encode())
+        #2. Analyze
+        elif self.path == '/api/analyze':
             content_length = int(self.headers['Content-Length'])
             yaml_data = self.rfile.read(content_length).decode('utf-8')
 

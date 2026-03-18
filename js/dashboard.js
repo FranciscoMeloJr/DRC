@@ -87,27 +87,66 @@ window.onload = function() {
         const val = botInput.value.trim();
         if (!val) return;
 
+        // 1. UI: Append User Message and clear input
         appendMessage('user', val);
         botInput.value = '';
 
         const lowerVal = val.toLowerCase();
 
+        // 2. Command Logic: Synthesis/Drafting
         if (lowerVal.includes('synthesize') || lowerVal.includes('reply') || lowerVal.includes('draft')) {
-            appendMessage('bot', 'Connecting to the Charizard Engine for synthesis...');
+            
+            const analysisData = sessionStorage.getItem('drc_report_data');
+            
+            if (!analysisData) {
+                appendMessage('bot', '⚠️ **Context Missing**: Please perform a cluster analysis first by uploading a YAML/XML file.');
+                return;
+            }
+
+            // Add a temporary "thinking" message
+            appendMessage('bot', 'Connecting to the Engine for synthesis...');
+            
             try {
-                const res = await fetch('/api/bot-reply');
-                if (!res.ok) throw new Error("Synthesis service unavailable");
-                const data = await res.text();
-                appendMessage('bot', data, true); 
+                const res = await fetch('/api/bot-chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: val,
+                        context: JSON.parse(analysisData) // The key "context" matches your Agent's **kwargs
+                    })
+                });
+
+                if (!res.ok) throw new Error("Synthesis service unreachable");
+                
+                const data = await res.json();
+
+                // 3. Handle Environment Error (-1)
+                if (data.reply === -1 || data.response === -1) {
+                    appendMessage('bot', `
+                        <div style="color: #ee0000; border: 1px solid #ee0000; padding: 10px; border-radius: 4px; margin-top: 10px; background: rgba(238,0,0,0.05);">
+                            <strong>AI Bridge Offline</strong><br>
+                            Environment variables (MODEL_API, etc.) are not set on the server.
+                        </div>
+                    `);
+                    return;
+                }
+
+                // 4. Success: Render the AI reply (isCode = true for formatted output)
+                const botReply = data.reply || data.response;
+                appendMessage('bot', botReply, true); 
+
             } catch (err) {
-                appendMessage('bot', 'Sorry, I had trouble connecting to the synthesis engine. Ensure the analysis is complete before drafting.');
+                appendMessage('bot', '❌ **Connection Error**: Ensure the Bridge Server is running on port 8090.');
+                console.error("Bot Error:", err);
             }
         } 
-        else if (lowerVal === 'hi' || lowerVal === 'hello' || lowerVal === 'hey' || lowerVal === 'o/') {
-            appendMessage('bot', "Hello! o/ I'm the DRC Advisor Bot. Try asking me to **'synthesize results'**!");
+        // 5. Basic Interactions
+        else if (['hi', 'hello', 'hey', 'o/'].includes(lowerVal)) {
+            appendMessage('bot', "Hello! o/ I'm the DRC Advisor Bot. I can turn your analysis into a professional customer reply. Try asking me to **'synthesize results'**!");
         }
+        // 6. Trivial Fallback
         else {
-            appendMessage('bot', "Sorry, that command is **not implemented yet**. Currently, I am focused on result synthesis.");
+            appendMessage('bot', "I'm currently focused on result synthesis. Try analyzing a file and then ask me to 'synthesize the findings' for a customer response.");
         }
     };
 
@@ -228,8 +267,10 @@ window.onload = function() {
             if (!response.ok) throw new Error(`Server Error: ${await response.text()}`);
             const data = await response.json();
 
+            sessionStorage.setItem('drc_report_data', JSON.stringify(data));
+            console.log("Analysis Context Locked to Session Storage.");
+
             if (isExternalReport) {
-                sessionStorage.setItem('drc_report_data', JSON.stringify(data));
                 const reportWindow = window.open('report.html', 'DRC_Report', 'width=1100,height=900,scrollbars=yes');
                 if (!reportWindow) alert("Popup blocked! Please allow popups.");
             } else {
