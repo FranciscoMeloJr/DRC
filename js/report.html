@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DRC Advisor | Final Analysis Report</title>
+    <link rel="stylesheet" href="/static/style.css"> <style>
+        body { background: #1a1a1a; color: white; padding: 40px; font-family: 'Segoe UI', sans-serif; }
+        .report-header { border-bottom: 2px solid #ee0000; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
+        .histogram-container { display: flex; align-items: flex-end; gap: 40px; height: 150px; background: #222; padding: 20px; border-radius: 8px; margin-bottom: 40px; border: 1px solid #333; }
+        .bar-wrapper { display: flex; flex-direction: column; align-items: center; width: 60px; height: 100%; justify-content: flex-end; }
+        .bar-fill { width: 25px; transition: height 0.8s ease; border-radius: 2px 2px 0 0; position: relative; }
+        .bar-label { font-size: 10px; margin-top: 10px; color: #999; }
+        .bar-value { position: absolute; top: -20px; font-weight: bold; font-size: 12px; }
+        
+        /* Histogram Colors */
+        .critical { background: #e60000; box-shadow: 0 0 10px rgba(230, 0, 0, 0.3); }
+        .error    { background: #ff8c00; }
+        .warning  { background: #007bff; }
+        .notice   { background: #28a745; }
+    </style>
+</head>
+<body>
+    <div class="report-header">
+        <div>
+            <h1 style="margin:0; letter-spacing: 2px;">DRC ADVISOR REPORT</h1>
+            <small id="report-date" style="color: #666;"></small>
+        </div>
+        <button onclick="window.print()" class="main-btn" style="padding: 10px 20px;">PRINT TO PDF</button>
+    </div>
+
+    <div id="drc-histogram" class="histogram-container"></div>
+
+    <div id="cluster-list" class="card-container"></div>
+
+    <script>
+        window.onload = function() {
+            const raw = sessionStorage.getItem('drc_report_data');
+            if (!raw) {
+                document.body.innerHTML = "<h1>Error: No Analysis Data Found.</h1>";
+                return;
+            }
+
+            const data = JSON.parse(raw);
+            document.getElementById('report-date').innerText = "Generated: " + new Date().toLocaleString();
+
+            // 1. Render Histogram
+            const summary = data.metadata.summary || {};
+            const levels = ["CRITICAL", "ERROR", "WARNING", "NOTICE"];
+            const max = Math.max(...Object.values(summary), 1);
+            
+            document.getElementById('drc-histogram').innerHTML = levels.map(lvl => {
+                const val = summary[lvl] || 0;
+                const h = (val / max) * 100;
+                return `
+                    <div class="bar-wrapper">
+                        <span class="bar-value">${val}</span>
+                        <div class="bar-fill ${lvl.toLowerCase()}" style="height: ${h}%"></div>
+                        <span class="bar-label">${lvl}</span>
+                    </div>`;
+            }).join('');
+
+            // 2. Render Cards
+            const list = document.getElementById('cluster-list');
+            const results = data.results || [];
+            results.forEach(res => {
+                res.findings.forEach(f => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    const severity = (f.crit || 'NOTICE').toUpperCase();
+                    
+                    let dotColor = "#28a745";
+                    if (severity === 'CRITICAL') dotColor = "#e60000";
+                    else if (severity === 'ERROR') dotColor = "#ff8c00";
+                    else if (severity === 'WARNING') dotColor = "#007bff";
+
+                    card.innerHTML = `
+                        <div class="dot" style="background: ${dotColor}"></div>
+                        <div class="card-text">
+                            <strong>${res.name.toUpperCase()}:</strong> ${f.ref}
+                        </div>`;
+                    list.appendChild(card);
+                });
+            });
+        };
+    </script>
+</body>
+</html>

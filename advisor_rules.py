@@ -1,8 +1,9 @@
-# Comprehensive Logic Registry
+## Comprehensive Logic Registry
 import yaml
 import os
 import json 
-# V2.2
+
+# V2.2 / V2.3 Agnostic Implementation
 
 # --- 1. THE NEW CALLER (dispatcher) ---
 def split_res(val):
@@ -27,14 +28,16 @@ def _eval_rule(obj, rule, findings, full_context, eval_undefined=True):
     """v2.2: Evaluates a leaf rule with a noise-filter toggle."""
     
     # --- THE GATEKEEPER ---
-    # If the user chose STANDARD mode (False) AND the field is missing, 
-    # we stop right here and don't add the finding.
     if not eval_undefined and obj == 'undefined':
         return
     # ----------------------
 
     cond = rule.get('condition')
-    spec_data = full_context.get('infinispan', {}).get('spec', {})
+    # Detection of spec root based on context type (Agnostic Support)
+    if 'infinispan' in full_context:
+        spec_data = full_context.get('infinispan', {}).get('spec', {})
+    else:
+        spec_data = full_context.get('cache', {}).get('spec', {})
     
     # Clean up the condition string
     cond = str(cond).strip()
@@ -74,16 +77,43 @@ def _walk_tree(data_node, rule_node, findings, full_context, eval_undefined=True
                 # 2. CRITICAL: Pass the baton into the NEXT level of recursion
                 _walk_tree(next_data, next_rule, findings, full_context, eval_undefined=eval_undefined)
 
-def check_full_logic_tree(context, eval_undefined=True):
+def check_full_logic_tree(context, kind, eval_undefined=True):
+    """v2.3: Agnostic tree loader. kind='infinispan' or 'cache'."""
     findings = []
-    rules_path = 'rules/infinispan-spec-rules.yaml'
+    rules_path = f'rules/{kind}-spec-rules.yaml'
     if not os.path.exists(rules_path): return []
     with open(rules_path, 'r') as f:
         registry = yaml.safe_load(f)
     _walk_tree(context, registry, findings, context, eval_undefined)
     return findings
 
-def check_full_logic_caller(spec, meta, status, container, to_gb, legacy=False, debug=True, eval_undefined=True):
+def check_full_logic_caller(item_or_spec, meta, status, container, to_gb, legacy=False, debug=True, eval_undefined=True):
+    # --- 1. Agnostic Kind Detection ---
+    is_cache = (item_or_spec.get('kind') == 'Cache') if isinstance(item_or_spec, dict) else False
+
+    # --- BRANCH A: CACHE IMPLEMENTATION (v2.3) ---
+    if is_cache:
+        spec = item_or_spec.get('spec', {})
+        full_context = {
+            "cache": {
+                "metadata": _expand(meta, ["name", "namespace"]),
+                "spec": {
+                    "clusterName": spec.get("clusterName", "undefined"),
+                    "template": spec.get("template", "undefined"),
+                    "templateName": spec.get("templateName", "undefined"),
+                    "updates": _expand(spec.get("updates", {}), ["strategy"])
+                },
+                "status": {
+                    "conditions": item_or_spec.get("status", {}).get("conditions", "undefined")
+                }
+            }
+        }
+        if debug:
+            print("\n--- [DEBUG] CACHE CONTEXT ---\n", json.dumps(full_context, indent=2))
+        return check_full_logic_tree(full_context, "cache", eval_undefined), {"qos_class": "N/A"}
+
+    # --- BRANCH B: INFINISPAN IMPLEMENTATION (v2.2 Original) ---
+    spec = item_or_spec # In Infinispan mode, first arg is the spec
     cpu_map = split_res(container.get("cpu"))
     mem_map = split_res(container.get("memory"))
 
@@ -109,7 +139,6 @@ def check_full_logic_caller(spec, meta, status, container, to_gb, legacy=False, 
                 "service": {
                     "type": svc.get("type", "undefined"),
                     "container": {
-                        # Force these to exist as keys so the Walker hits them
                         "storage": svc_cont.get("storage", "undefined"),
                         "ephemeralStorage": svc_cont.get("ephemeralStorage", "undefined"),
                         "livenessProbe": container.get("livenessProbe", "undefined"),
@@ -127,7 +156,7 @@ def check_full_logic_caller(spec, meta, status, container, to_gb, legacy=False, 
         print("\n--- [DEBUG] MODE: %s ---" % ("LEGACY HARDCODED" if legacy else "MODULAR TREE WALKER"))
         if not legacy:
             print("Synthetic Context:")
-            print(json.dumps(full_context, indent=2))
+            print(json.dumps(full_context, indent=2, default=str))
         print("------------------------------------------\n")
 
     # QoS Priority: Status > Spec
@@ -137,12 +166,11 @@ def check_full_logic_caller(spec, meta, status, container, to_gb, legacy=False, 
         live_qos = "Guaranteed" if is_guaranteed else "Burstable"
 
     if not legacy:
-        return check_full_logic_tree(full_context, eval_undefined), {"qos_class": live_qos}
+        return check_full_logic_tree(full_context, "infinispan", eval_undefined), {"qos_class": live_qos}
     else:
-        # This would call your old hardcoded function
         return [], {"qos_class": live_qos}
 
-# Legacy V2.1
+# --- 2. LEGACY V2.1 HARDCODED LOGIC (Keep exactly as original) ---
 def check_full_logic(spec, meta, container, to_gb, debug=False):
     findings = []
     service_spec = spec.get('service', {})
@@ -240,17 +268,15 @@ def check_full_logic(spec, meta, container, to_gb, debug=False):
             findings.append("fips_requirement")
 
     # 17. Detecting logging
-    logging_conf =  spec.get('logging', {})
+    logging_conf = spec.get('logging', {})
     log_level = logging_conf.get('level', '').upper()
-
     if log_level not in ['DEBUG', 'TRACE']:
         findings.append("drc_log")
 
-    # 18. Affinity: hard, soft, weak
+    # 18. Affinity
     if "affinity" not in spec.get('scheduling', {}):
         findings.append("affinity_weak")
     else:
-        # Detect if it's Soft (preferred) vs Hard (required)
         affinity_str = str(spec.get('scheduling', {}).get('affinity', ''))
         if "preferredDuringSchedulingIgnoredDuringExecution" in affinity_str:
             findings.append("affinity_soft")
@@ -259,14 +285,11 @@ def check_full_logic(spec, meta, container, to_gb, debug=False):
 
     # 19. QoS mismatch
     resources = spec.get('container', {}).get('resources', {})
-    limits = resources.get('limits', {})
-    requests = resources.get('requests', {})
-    
-    if limits != requests or not limits:
+    limits_q = resources.get('limits', {})
+    requests_q = resources.get('requests', {})
+    if limits_q != requests_q or not limits_q:
         findings.append("qos_mismatch")
 
     if debug:
         print(findings)
-
     return findings
-    

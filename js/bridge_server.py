@@ -47,7 +47,7 @@ except ImportError as e:
     traceback.print_exc()
     sys.exit(1)
 
-PORT = 8082
+PORT = 8080
 
 class BridgeHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self, debug=True):
@@ -126,8 +126,8 @@ class BridgeHandler(http.server.SimpleHTTPRequestHandler):
             # Run the Python Engine
             engine = DRCAdvisor()
             engine.load_content(yaml_data, eval_header=eval_undefined)
-            results = engine.analyze_infinispan()
-            print(f"DEBUG DATA: {json.dumps(results, indent=2)}")
+            results = engine.analyze()
+            print(f"DEBUG DATA: {json.dumps(results, indent=2, default=str)}")
 
             # Tally the summary findings (Required for the JS Face KPIs)
             summary = {}
@@ -138,7 +138,7 @@ class BridgeHandler(http.server.SimpleHTTPRequestHandler):
 
             response_data = {
                 "metadata": {
-                    "generated_at": "Live Analysis",
+                    "generated_at": "DRC Analysis",
                     "summary": summary
                 },
                 "results": results
@@ -152,9 +152,6 @@ class BridgeHandler(http.server.SimpleHTTPRequestHandler):
         else:
             # Instead of calling super(), we send a proper 404 error
             self.send_error(404, "Endpoint not found")
-
-        if self.path == '/api/analyze/cache':
-            print("Implement it")
 
     def translate_path(self, path):
         # Ensure the server looks for files inside the /js directory

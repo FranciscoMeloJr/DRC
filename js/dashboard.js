@@ -24,6 +24,10 @@ window.onload = function() {
     const kcsListBtn = document.getElementById('kcsListBtn');
     const exportBtn = document.getElementById('exportBtn');
 
+    // v2.3 Toggle View Elements
+    const reportViewToggle = document.getElementById('reportViewToggle');
+    const viewTypeText = document.getElementById('viewTypeText');
+
     // Modals
     const aboutModal = document.getElementById('aboutModal');
     const rulesModal = document.getElementById('rulesModal');
@@ -48,8 +52,9 @@ window.onload = function() {
     // ==========================================
     let currentProfile = 'generic';
     let isOnlineMode = onlineToggle ? onlineToggle.checked : false;
+    let isExternalReport = reportViewToggle ? reportViewToggle.checked : false;
 
-   // ==========================================
+    // ==========================================
     // 3. ADVISOR BOT LOGIC (v2.3 Charizard)
     // ==========================================
     const toggleBot = () => {
@@ -62,82 +67,68 @@ window.onload = function() {
     if (botClose) botClose.onclick = () => botPanel.style.display = 'none';
 
     function appendMessage(sender, text, isCode = false) {
-            if (!botMessages) return;
-            const msgDiv = document.createElement('div');
-            msgDiv.className = `message ${sender}`;
-            
-            let html = isCode ? `<pre><code>${text}</code></pre>` : `<p>${text}</p>`;
-            
-            if (sender === 'bot') {
-                msgDiv.innerHTML = `<img src="${botIcon}" class="msg-icon">${html}`;
-            } else {
-                msgDiv.innerHTML = html;
-            }
-            
-            botMessages.appendChild(msgDiv);
-            botMessages.scrollTop = botMessages.scrollHeight;
+        if (!botMessages) return;
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${sender}`;
+        
+        let html = isCode ? `<pre><code>${text}</code></pre>` : `<p>${text}</p>`;
+        
+        if (sender === 'bot') {
+            msgDiv.innerHTML = `<img src="${botIcon}" class="msg-icon">${html}`;
+        } else {
+            msgDiv.innerHTML = html;
         }
+        
+        botMessages.appendChild(msgDiv);
+        botMessages.scrollTop = botMessages.scrollHeight;
+    }
 
-        const handleSend = async () => {
-            const val = botInput.value.trim();
-            if (!val) return;
+    const handleSend = async () => {
+        const val = botInput.value.trim();
+        if (!val) return;
 
-            // Display user message and clear input
-            appendMessage('user', val);
-            botInput.value = '';
+        appendMessage('user', val);
+        botInput.value = '';
 
-            const lowerVal = val.toLowerCase();
+        const lowerVal = val.toLowerCase();
 
-            // 1. Trigger Synthesis/Drafting Logic
-            if (lowerVal.includes('synthesize') || lowerVal.includes('reply') || lowerVal.includes('draft')) {
-                appendMessage('bot', 'Connecting to the Charizard Engine for synthesis...');
-                
-                try {
-                    const res = await fetch('/api/bot-reply');
-                    if (!res.ok) throw new Error("Synthesis service unavailable");
-                    
-                    const data = await res.text();
-                    // Render synthesis as a pre-formatted block (isCode = true)
-                    appendMessage('bot', data, true); 
-                } catch (err) {
-                    appendMessage('bot', 'Sorry, I had trouble connecting to the synthesis engine. Ensure the analysis is complete before drafting.');
-                }
-            } 
-            // 2. Handle Common Greetings
-            else if (lowerVal === 'hi' || lowerVal === 'hello' || lowerVal === 'hey' || lowerVal === 'o/') {
-                appendMessage('bot', "Hello! o/ I'm the DRC Advisor Bot. I can turn your analysis into a professional customer reply based on collaborative engineering standards. Try asking me to **'synthesize results'**!");
+        if (lowerVal.includes('synthesize') || lowerVal.includes('reply') || lowerVal.includes('draft')) {
+            appendMessage('bot', 'Connecting to the Charizard Engine for synthesis...');
+            try {
+                const res = await fetch('/api/bot-reply');
+                if (!res.ok) throw new Error("Synthesis service unavailable");
+                const data = await res.text();
+                appendMessage('bot', data, true); 
+            } catch (err) {
+                appendMessage('bot', 'Sorry, I had trouble connecting to the synthesis engine. Ensure the analysis is complete before drafting.');
             }
-            // 3. "Not Implemented Yet" Fail-safe
-            else {
-                appendMessage('bot', "Sorry, that command is **not implemented yet**. Currently, I am focused on result synthesis and expertise in collaborative standards like DG tuning (https://docs.redhat.com/en/documentation/red_hat_data_grid/8.5/html/data_grid_performance_and_sizing_guide/index).");
-            }
+        } 
+        else if (lowerVal === 'hi' || lowerVal === 'hello' || lowerVal === 'hey' || lowerVal === 'o/') {
+            appendMessage('bot', "Hello! o/ I'm the DRC Advisor Bot. Try asking me to **'synthesize results'**!");
+        }
+        else {
+            appendMessage('bot', "Sorry, that command is **not implemented yet**. Currently, I am focused on result synthesis.");
+        }
+    };
+
+    if (botSend) botSend.onclick = handleSend;
+    if (botInput) {
+        botInput.onkeypress = (e) => { 
+            if (e.key === 'Enter') handleSend(); 
         };
-
-        if (botSend) botSend.onclick = handleSend;
-        if (botInput) {
-            botInput.onkeypress = (e) => { 
-                if (e.key === 'Enter') handleSend(); 
-            };
-        }
+    }
 
     // ==========================================
     // 4. MODAL LOGIC (DRC v2.2 Standards)
     // ==========================================
-    if (aboutBtn && aboutModal) {
-        aboutBtn.onclick = () => aboutModal.style.display = "block";
-    }
-
+    if (aboutBtn && aboutModal) aboutBtn.onclick = () => aboutModal.style.display = "block";
     if (viewRulesBtn && rulesModal) {
         viewRulesBtn.onclick = () => {
             rulesModal.style.display = "block";
             fetchRules();
         };
     }
-
-    if (ruleExampleBtn && exampleModal) {
-        ruleExampleBtn.onclick = () => exampleModal.style.display = "block";
-    }
-
+    if (ruleExampleBtn && exampleModal) ruleExampleBtn.onclick = () => exampleModal.style.display = "block";
     if (closeAbout) closeAbout.onclick = () => aboutModal.style.display = "none";
     if (closeRules) closeRules.onclick = () => rulesModal.style.display = "none";
     if (closeExample) closeExample.onclick = () => exampleModal.style.display = "none";
@@ -161,6 +152,16 @@ window.onload = function() {
         };
     }
 
+    if (reportViewToggle) {
+        reportViewToggle.onchange = function() {
+            isExternalReport = this.checked;
+            if (viewTypeText) {
+                viewTypeText.innerText = isExternalReport ? "Popup" : "Inline";
+                viewTypeText.style.color = isExternalReport ? "#007bff" : "#333";
+            }
+        };
+    }
+
     if (profileSelect) {
         profileSelect.onchange = function() {
             currentProfile = this.value;
@@ -168,9 +169,7 @@ window.onload = function() {
         };
     }
 
-    if (kcsListBtn) {
-        kcsListBtn.onclick = () => window.open('https://access.redhat.com/solutions', '_blank');
-    }
+    if (kcsListBtn) kcsListBtn.onclick = () => window.open('https://access.redhat.com/solutions', '_blank');
 
     // ==========================================
     // 6. DRAG AND DROP / FILE UPLOAD
@@ -204,8 +203,15 @@ window.onload = function() {
 
     async function handleFile(file) {
         if (!file) return;
-        dashboard.style.display = 'block';
-        clusterList.innerHTML = '<div class="loading-box"><p style="color:white;">Analyzing binary stream...</p></div>';
+        
+        const originalText = uploadBtn.innerText;
+        uploadBtn.innerText = "STREAMING TO BRIDGE...";
+        uploadBtn.disabled = true;
+
+        if (!isExternalReport) {
+            dashboard.style.display = 'block';
+            clusterList.innerHTML = '<div class="loading-box"><p style="color:white;">Analyzing binary stream...</p></div>';
+        }
 
         try {
             const fileContent = await file.text();
@@ -221,18 +227,61 @@ window.onload = function() {
 
             if (!response.ok) throw new Error(`Server Error: ${await response.text()}`);
             const data = await response.json();
-            renderDashboard(data);
+
+            if (isExternalReport) {
+                sessionStorage.setItem('drc_report_data', JSON.stringify(data));
+                const reportWindow = window.open('report.html', 'DRC_Report', 'width=1100,height=900,scrollbars=yes');
+                if (!reportWindow) alert("Popup blocked! Please allow popups.");
+            } else {
+                renderDashboard(data);
+            }
         } catch (error) {
-            clusterList.innerHTML = `<div class="card critical"><h3>Analysis Failed</h3><p>${error.message}</p></div>`;
+            alert("Analysis Failed: " + error.message);
+        } finally {
+            uploadBtn.innerText = originalText;
+            uploadBtn.disabled = false;
         }
     }
 
     // ==========================================
-    // 7. DASHBOARD RENDERING
+    // 7. DASHBOARD & HISTOGRAM RENDERING
     // ==========================================
+    function renderHistogram(summary) {
+        let histContainer = document.getElementById('drc-histogram');
+        if (!histContainer) {
+            histContainer = document.createElement('div');
+            histContainer.id = 'drc-histogram';
+            histContainer.className = 'histogram-container';
+            clusterList.parentNode.insertBefore(histContainer, clusterList);
+        }
+
+        const levels = ["CRITICAL", "ERROR", "WARNING", "NOTICE"];
+        const counts = levels.map(l => summary[l] || 0);
+        const maxCount = Math.max(...counts, 1);
+
+        histContainer.innerHTML = levels.map(lvl => {
+            const count = summary[lvl] || 0;
+            const height = (count / maxCount) * 100;
+            return `
+                <div class="bar-wrapper">
+                    <span class="bar-value">${count > 0 ? count : ''}</span>
+                    <div class="bar-fill ${lvl.toLowerCase()}" style="height: ${height}%"></div>
+                    <span class="bar-label">${lvl}</span>
+                </div>`;
+        }).join('');
+    }
+
     function renderDashboard(data) {
         dashboard.style.display = 'block';
         clusterList.innerHTML = '';
+        
+        const oldHist = document.getElementById('drc-histogram');
+        if (oldHist) oldHist.innerHTML = ''; 
+
+        if (data.metadata && data.metadata.summary) {
+            renderHistogram(data.metadata.summary);
+        }
+
         const sourceData = Array.isArray(data) ? data : (data.results || []);
 
         const summaryTitle = document.createElement('h3');
@@ -250,7 +299,7 @@ window.onload = function() {
                     
                     const severity = f.crit ? f.crit.toUpperCase() : 'NOTICE';
                     if (severity === 'CRITICAL') dot.style.background = '#e60000';
-                    else if (severity === 'IMPORTANT') dot.style.background = '#ff8c00';
+                    else if (severity === 'IMPORTANT' || severity === 'ERROR') dot.style.background = '#ff8c00';
                     else if (severity === 'WARNING') dot.style.background = '#007bff';
                     else dot.style.background = '#28a745';
 

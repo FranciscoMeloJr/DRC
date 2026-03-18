@@ -1,0 +1,42 @@
+apiVersion: infinispan.org/v2alpha1
+kind: Cache
+metadata:
+  creationTimestamp: '2026-02-28T02:19:26Z'
+  generation: 1
+  managedFields:
+    - apiVersion: infinispan.org/v2alpha1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:spec':
+          .: {}
+          'f:clusterName': {}
+          'f:name': {}
+          'f:template': {}
+      manager: Mozilla
+      operation: Update
+      time: '2026-02-28T02:19:26Z'
+    - apiVersion: infinispan.org/v2alpha1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:status':
+          .: {}
+          'f:conditions': {}
+      manager: infinispan-operator
+      operation: Update
+      subresource: status
+      time: '2026-02-28T02:19:27Z'
+  name: cache-cr
+  namespace: datagrid-operator
+  resourceVersion: '48448560'
+  uid: f2ac8804-4e8c-413b-943a-5fe40197b269
+spec:
+  clusterName: example-infinispan
+  name: mycache
+  template: <passivation-enabled-writebehind-filestore-cachestore />
+  updates:
+    strategy: retain
+status:
+  conditions:
+    - message: 'unable to create cache with template: unexpected HTTP status code (400): unexpected error creating cache, response: ISPN000327: Cannot find a parser for element ''passivation-enabled-writebehind-filestore-cachestore'' in namespace ''''. Check that your configuration is up-to date for Infinispan ''14.0.2.Final-redhat-00001'' and if you have the proper dependency in the classpath'
+      status: 'False'
+      type: Ready

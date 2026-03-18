@@ -26,10 +26,10 @@ def run_ui():
     with open(path) as f:
         engine = DRCAdvisor()
         engine.load_content(f.read())
-        results = engine.analyze_infinispan()
+        results = engine.analyze()
 
         print(f"\033[{title_color}m" + "=" * 65)
-        print(" INFINISPAN DRC ADVISOR REPORT")
+        print(" DRC ADVISOR REPORT")
         print(f" Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"\033[{title_color}m" + "=" * 65)
 
