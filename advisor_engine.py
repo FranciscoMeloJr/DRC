@@ -1,7 +1,7 @@
 import yaml, re, csv, os
 import advisor_rules as rules
 
-class InfinispanDRCAdvisor:
+class DRCAdvisor:
     def __init__(self):
         self.data = None
         self.eval_undefined = True
@@ -20,7 +20,7 @@ class InfinispanDRCAdvisor:
                     self.kcs_db = json.load(f)
 
             # 2. Append Modular YAML
-            modular_path = 'kcs/infinispan-spec-rules.yaml'
+            modular_path = 'rules/infinispan-spec-rules.yaml'
             if os.path.exists(modular_path):
                 with open(modular_path, 'r') as f:
                     registry = yaml.safe_load(f)
@@ -71,7 +71,7 @@ class InfinispanDRCAdvisor:
         if u == "ki": return v / (1024 * 1024)
         return v
 
-    def analyze(self, debug=True):
+    def analyze_infinispan(self, debug=True):
             results = []
             if isinstance(self.data, dict) and 'items' in self.data:
                 items = self.data['items']

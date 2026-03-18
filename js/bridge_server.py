@@ -32,14 +32,14 @@ print("--- END DEBUG ---\n")
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 #try:
-#    from advisor_engine import InfinispanDRCAdvisor
+#    from advisor_engine import DRCAdvisor
 #except ImportError:
 #    print("Error: advisor_engine.py not found in the parent directory.")
 #    sys.exit(1)
 
 # Updated try/except for bridge_server.py
 try:
-    from advisor_engine import InfinispanDRCAdvisor
+    from advisor_engine import DRCAdvisor
     print("SUCCESS: advisor_engine imported.")
 except ImportError as e:
     print(f"--- REAL IMPORT ERROR: {e} ---")
@@ -47,11 +47,33 @@ except ImportError as e:
     traceback.print_exc()
     sys.exit(1)
 
-PORT = 8080
+PORT = 8082
 
 class BridgeHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self, debug=True):
-        # 1. Handle the Logo/Static files (Since they live outside the /js folder)
+        # 1. Handle Bot Synthesis Endpoint
+        if self.path == '/api/bot-reply':
+            try:
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/plain')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                
+                # Check if we have results to synthesize
+                if not hasattr(advisor_instance, 'last_results') or not advisor_instance.last_results:
+                    response = "I haven't analyzed any files yet! Please upload a YAML/XML so I can draft a reply for you. o/"
+                else:
+                    # Call the synthesis logic (Make sure this exists in your advisor_engine.py)
+                    # For now, we'll use a helper function or the engine's internal method
+                    response = self.generate_synthesis(advisor_instance.last_results)
+                
+                self.wfile.write(response.encode('utf-8'))
+                return
+            except Exception as e:
+                self.send_error(500, f"Synthesis Error: {e}")
+                return
+
+        # 2. Handle the Logo/Static files (Since they live outside the /js folder)
         if self.path.startswith('/static/'):
             try:
                 # Calculate path to the 'static' folder (one level up from /js)
@@ -73,8 +95,8 @@ class BridgeHandler(http.server.SimpleHTTPRequestHandler):
                 print(f"Static file error: {e}")
                 self.send_error(404, "Static file not found")
                 return
-        # 2. Now 'engine' is defined in the module scope and accessible here
-        engine = InfinispanDRCAdvisor()
+        # 3. Now 'engine' is defined in the module scope and accessible here
+        engine = DRCAdvisor()
         if self.path == '/api/rules':
             try:
                 self.send_response(200)
@@ -102,9 +124,9 @@ class BridgeHandler(http.server.SimpleHTTPRequestHandler):
             eval_undefined = (eval_header == 'false')
 
             # Run the Python Engine
-            engine = InfinispanDRCAdvisor()
+            engine = DRCAdvisor()
             engine.load_content(yaml_data, eval_header=eval_undefined)
-            results = engine.analyze()
+            results = engine.analyze_infinispan()
             print(f"DEBUG DATA: {json.dumps(results, indent=2)}")
 
             # Tally the summary findings (Required for the JS Face KPIs)
@@ -131,10 +153,46 @@ class BridgeHandler(http.server.SimpleHTTPRequestHandler):
             # Instead of calling super(), we send a proper 404 error
             self.send_error(404, "Endpoint not found")
 
+        if self.path == '/api/analyze/cache':
+            print("Implement it")
+
     def translate_path(self, path):
         # Ensure the server looks for files inside the /js directory
         root = os.path.dirname(os.path.abspath(__file__))
         return os.path.join(root, path.lstrip('/'))
+
+    def generate_synthesis(self, results):
+            """Builds the customer-facing report narrative with fail-safe logic"""
+            
+            # Pull the last user message from a header if you want to be precise, 
+            # but usually, we just check if results exist.
+            if not results:
+                return "I haven't seen any analysis results yet. Please upload a YAML/XML first! o/"
+
+            report = "### 🤖 DRC ADVISOR SYNTHESIS (v2.3 Charizard)\n"
+            report += "--------------------------------------------------\n"
+            
+            found_data = False
+            for res in results:
+                name = res.get('name', 'Unknown').upper()
+                findings = res.get('findings', [])
+                
+                if findings:
+                    found_data = True
+                    report += f"**RESOURCE:** {name}\n"
+                    for f in findings:
+                        icon = "🚨" if f.get('crit') == "CRITICAL" else "⚠️"
+                        report += f"{icon} {f.get('ref')}\n"
+                    report += "\n"
+
+            if not found_data:
+                return "Analysis complete: No issues detected. Nothing to synthesize! ✅"
+
+            report += "**EXPERT RECOMMENDATION:**\n"
+            report += "This synthesis incorporates collaborative engineering feedback. "
+            report += "For high-performance clusters, ensure ZGC is tuned per KCS 5437451.\n"
+            report += "--------------------------------------------------"
+            return report
 
 with socketserver.TCPServer(("", PORT), BridgeHandler) as httpd:
     print(f"🚀 Bridge Active: http://localhost:{PORT}")

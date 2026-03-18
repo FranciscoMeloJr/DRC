@@ -1,5 +1,5 @@
 import os, sys, datetime, csv
-from advisor_engine import InfinispanDRCAdvisor
+from advisor_engine import DRCAdvisor
 
 def run_ui():
     C = {'E': '\033[0m', 'B': '\033[94m', 'P': '\033[95m', 'BOLD': '\033[1m'}
@@ -24,9 +24,9 @@ def run_ui():
 
     path = sys.argv[1] if len(sys.argv) > 1 else input("YAML Path: ")
     with open(path) as f:
-        engine = InfinispanDRCAdvisor()
+        engine = DRCAdvisor()
         engine.load_content(f.read())
-        results = engine.analyze()
+        results = engine.analyze_infinispan()
 
         print(f"\033[{title_color}m" + "=" * 65)
         print(" INFINISPAN DRC ADVISOR REPORT")

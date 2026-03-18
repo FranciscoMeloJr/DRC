@@ -76,7 +76,7 @@ def _walk_tree(data_node, rule_node, findings, full_context, eval_undefined=True
 
 def check_full_logic_tree(context, eval_undefined=True):
     findings = []
-    rules_path = 'kcs/infinispan-spec-rules.yaml'
+    rules_path = 'rules/infinispan-spec-rules.yaml'
     if not os.path.exists(rules_path): return []
     with open(rules_path, 'r') as f:
         registry = yaml.safe_load(f)

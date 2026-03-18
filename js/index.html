@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DRC Advisor - v2.2</title>
+    <title>DRC Advisor - v2.3</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,7 +11,7 @@
     <header class="header">
         <div class="header-left">
             <img src="static/drc.png" alt="DRC Logo" class="header-logo">
-            <span class="header-title">DRC WEBVERSION | v2.2</span>
+            <span class="header-title">DRC WEBVERSION | v2.3</span>
         </div>
         <div class="header-right">
             <button id="aboutBtn" class="header-btn">About</button>
@@ -65,7 +65,7 @@
             <span class="close" id="closeAbout">&times;</span>
             <h2>About DRC Advisor</h2>
             <p>Diagnostic & Reliability Checker (DRC) is designed to validate OpenShift cluster configurations and Infinispan cache definitions against Red Hat best practices.</p>
-            <p><strong>Version:</strong> 2.2 - Charizard</p>
+            <p><strong>Version:</strong> 2.3 - Charizard</p>
         </div>
     </div>
 
@@ -94,10 +94,36 @@
         </div>
     </div>
 
-    <footer class="footer">
-        DRC WEBVERSION | v2.2 - Charizard | Date: 2026-03-16
-    </footer>
+    <!-- Bot -->
+    <div id="drc-bot-container">
+        <button id="drc-bot-fab" class="bot-fab">
+            <img src="/static/bot.png" alt="Bot">
+        </button>
 
+        <div id="drc-bot-panel" class="bot-panel" style="display:none;">
+            <div class="bot-header">
+                <img src="/static/bot.png" class="header-icon">
+                <span>DRC Advisor Bot v2.3</span>
+                <button id="drc-bot-close">&times;</button>
+            </div>
+            <div id="drc-bot-messages" class="bot-messages">
+                <div class="message bot">
+                    <img src="/static/bot.png" class="msg-icon">
+                    <p>Hello! I am the DRC Advisor. Upload a CR and I can help you draft a customer-facing reply.</p>
+                </div>
+            </div>
+            <div class="bot-input-area">
+                <input type="text" id="drc-bot-input" placeholder="Type here...">
+                <button id="drc-bot-send">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        DRC WEBVERSION | v2.3 - Charizard | Date: 2026-03-16
+    </footer>
+    <!-- Important dashboard -->
     <script src="dashboard.js"></script>
 </body>
 </html>

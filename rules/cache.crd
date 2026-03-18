@@ -1,0 +1,29 @@
+$ oc explain caches.spec --recursive
+GROUP:      infinispan.org
+KIND:       Cache
+VERSION:    v2alpha1
+
+FIELD: spec <Object>
+
+
+DESCRIPTION:
+    CacheSpec defines the desired state of Cache
+    
+FIELDS:
+  adminAuth	<Object>
+    password	<Object>
+      key	<string> -required-
+      name	<string>
+      optional	<boolean>
+    secretName	<string>
+    username	<Object>
+      key	<string> -required-
+      name	<string>
+      optional	<boolean>
+  clusterName	<string> -required-
+  name	<string>
+  template	<string>
+  templateName	<string>
+  updates	<Object>
+    strategy	<string>
+    enum: recreate, retain

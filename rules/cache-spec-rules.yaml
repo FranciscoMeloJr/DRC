@@ -1,0 +1,48 @@
+cache:
+  # --- Branch A: Configuration Input ---
+  spec:
+    template:
+      invalid_xml_format:
+        condition: "obj != 'undefined' and not obj.startswith('<')"
+        criticality: CRITICAL
+        reference: "The 'template' field contains a string name instead of raw XML."
+        kcs: "N/A"
+        fix: "In 14.0+, 'template' must be raw XML. If using a name, use 'templateName' instead."
+    
+    updates:
+      strategy:
+        retain_strategy_usage:
+          condition: "== 'retain'"
+          criticality: NOTICE
+          reference: "Update strategy is set to 'retain'."
+          kcs: "N/A"
+          fix: "Strategy 'retain' prevents the operator from applying template changes to existing caches."
+
+  # --- Branch B: Operator Output ---
+  status:
+    conditions:
+      # Accessing the first index of the conditions list
+      "[0]":
+        message:
+          parser_error_ispn:
+            condition: "obj != 'undefined' and 'ISPN000327' in obj"
+            criticality: CRITICAL
+            reference: "Infinispan Parser Error (ISPN000327) detected."
+            kcs: "N/A"
+            fix: "The element in 'spec.template' is unknown. Ensure XML tags match the 14.0 schema."
+        
+        status:
+          readiness_failed:
+            condition: "== 'False'"
+            criticality: IMPORTANT
+            reference: "The Cache resource is not in a 'Ready' state."
+            kcs: "N/A"
+            fix: "Review the 'message' field in status for specific reconciliation errors."
+            
+        type:
+          type_check:
+            condition: "!= 'Ready'"
+            criticality: NOTICE
+            reference: "Condition type is not 'Ready'."
+            kcs: "N/A"
+            fix: "The operator has not yet confirmed this cache is ready for traffic."
