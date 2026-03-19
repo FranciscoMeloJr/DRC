@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DRC Advisor - v2.3</title>
+    <title>DRC Advisor - v2.4</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,7 +11,7 @@
     <header class="header">
         <div class="header-left">
             <img src="static/drc.png" alt="DRC Logo" class="header-logo">
-            <span class="header-title">DRC WEBVERSION | v2.3</span>
+            <span class="header-title">DRC WEBVERSION | v2.4</span>
         </div>
         <div class="header-right">
             <button id="aboutBtn" class="header-btn">About</button>
@@ -41,10 +41,10 @@
         <div class="dock-group">
             <label for="profileSelect">Mode:</label>
             <select id="profileSelect" class="dock-select">
-                <option value="Review">Review</option>
-                <option value="Simulate">Simulate(tdb)</option>
-                <option value="Tune">Tune(tbd)</option>
-                <option value="Tune">Compare(tbd)</option>
+                <option value="Review">Reviewer</option>
+                <option value="Simulate">Simulator(tdb)</option>
+                <option value="Tune">Optimizer(tbd)</option>
+                <option value="Tune">Comparator(tbd)</option>
             </select>
         </div>
         <div class="dock-sep"></div>
@@ -75,7 +75,7 @@
             <span class="close" id="closeAbout">&times;</span>
             <h2>About DRC Advisor</h2>
             <p>Diagnostic & Reliability Checker (DRC) is designed to validate OpenShift cluster configurations and Infinispan cache definitions against Red Hat best practices.</p>
-            <p><strong>Version:</strong> 2.3 - Charizard</p>
+            <p><strong>Version:</strong> 2.4 - Charizard</p>
         </div>
     </div>
 
@@ -113,13 +113,13 @@
         <div id="drc-bot-panel" class="bot-panel" style="display:none;">
             <div class="bot-header">
                 <img src="/static/bot.png" class="header-icon">
-                <span>DRC Advisor Bot v2.3</span>
+                <span>DRC Advisor</span>
                 <button id="drc-bot-close">&times;</button>
             </div>
             <div id="drc-bot-messages" class="bot-messages">
                 <div class="message bot">
                     <img src="/static/bot.png" class="msg-icon">
-                    <p>Hello! I am the DRC Advisor. Upload a CR and I can help you draft a customer-facing reply.</p>
+                    <p>Hello! I am Dan, the DRC Advisor. Upload a CR and I can help you draft a customer-facing reply.</p>
                 </div>
             </div>
             <div class="bot-input-area">
@@ -131,7 +131,7 @@
 
     <!-- Footer -->
     <footer class="footer">
-        DRC WEBVERSION | v2.3 - Charizard | Date: 2026-03-16
+        DRC WEBVERSION | v2.4 - Charizard | Date: 2026-03-18
     </footer>
     <!-- Important dashboard -->
     <script src="dashboard.js"></script>

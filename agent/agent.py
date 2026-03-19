@@ -38,7 +38,7 @@ AVAILABLE_FUNCTIONS = {
     "analise_yaml": analise_yaml
 }
 
-def call_model(messages, tools=None, debug=True):
+def call_model(messages, tools=None, debug=False):
     """Call the Models.corp API"""
     api_url = os.getenv('MODEL_API')
     model_id = os.getenv('MODEL_ID')

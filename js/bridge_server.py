@@ -3,48 +3,77 @@ import socketserver
 import json
 import os
 import sys
+import datetime
 from pathlib import Path
 
-# --- DEBUG INSTRUMENTATION ---
-print("--- CONTAINER PATH DEBUG ---")
-print(f"Current Working Directory (CWD): {os.getcwd()}")
-print(f"Script File (file): {__file__}")
-
-# Calculate the paths
+# ==========================================
+# 1. PATH & ENGINE INSTRUMENTATION
+# ==========================================
+print("--- 🔍 CONTAINER PATH DEBUG ---")
 base_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.abspath(os.path.join(base_dir, '..'))
 
-print(f"Calculated Base Dir: {base_dir}")
-print(f"Calculated Parent Dir (..): {parent_dir}")
+print(f"CWD: {os.getcwd()}")
+print(f"Base Dir: {base_dir}")
+print(f"Parent Dir: {parent_dir}")
 
-if os.path.exists(parent_dir):
-    print(f"Parent Directory Contents: {os.listdir(parent_dir)}")
-else:
-    print("CRITICAL: Parent Directory does not exist!")
+# Inject parent dir into sys.path to find /agent and engine files
+if parent_dir not in sys.path:
+    sys.path.append(parent_dir)
 
-target_file = os.path.join(parent_dir, 'advisor_engine.py')
-print(f"Checking for file: {target_file}")
-print(f"File exists?: {os.path.exists(target_file)}")
-print("--- END DEBUG ---\n")
-# --- END DEBUG ---
+target_engine = os.path.join(parent_dir, 'advisor_engine.py')
+print(f"Checking Engine: {target_engine} | Exists: {os.path.exists(target_engine)}")
+print("--- 🏁 END DEBUG ---\n")
 
-# Add the parent directory to the path so we can import the engine
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-agent_dir = os.path.join(parent_dir, 'agent')
+# ==========================================
+# 2. ENVIRONMENT & SECRET VALIDATION
+# ==========================================
+# Dynamic PORT with fallback
+try:
+    PORT = int(os.getenv("PORT", 8080))
+except ValueError:
+    PORT = 8080
 
-from agent.agent import chat_with_tools # Ensure your pathing is correct
+# Mandatory AI Secrets
+REQUIRED_VARS = ["USER_KEY", "MODEL_API", "MODEL_ID"]
+missing = [v for v in REQUIRED_VARS if not os.getenv(v)]
 
+if missing:
+    print(f"❌ CRITICAL ERROR: Missing Env Vars: {', '.join(missing)}")
+    print("Ensure your OCP Secret 'drc-ai-credentials' is mapped in deployment.yaml")
+
+print(f"✅ Environment Verified. Listening on Port: {PORT}")
+
+# ==========================================
+# 3. IMPORTS
+# ==========================================
+from agent.agent import chat_with_tools
 try:
     from advisor_engine import DRCAdvisor
-    print("SUCCESS: advisor_engine imported.")
+    print("🚀 SUCCESS: Advisor Engine ready.")
 except ImportError as e:
-    print(f"--- REAL IMPORT ERROR: {e} ---")
-    import traceback
-    traceback.print_exc()
+    print(f"💥 IMPORT FAILED: {e}")
     sys.exit(1)
+# --- PORT CONFIGURATION ---
+# Use the PORT env var provided by OCP, default to 8080 if not set
+try:
+    PORT = int(os.getenv("PORT", 8080))
+    print(f"📡 Configuration: Server will listen on Port {PORT}")
+except ValueError:
+    print("⚠️ Warning: Invalid PORT env var. Falling back to 8080.")
+    PORT = 8080
 
-PORT = 8080
+# --- SECRET VERIFICATION ---
+REQUIRED_SECRETS = ["USER_KEY", "MODEL_API", "MODEL_ID"]
+missing_secrets = [s for s in REQUIRED_SECRETS if not os.getenv(s)]
 
+if missing_secrets:
+    print("\n" + "!" * 50)
+    print(f"CRITICAL: Missing Environment Variables: {', '.join(missing_secrets)}")
+    print("Check your OCP Secret 'drc-ai-credentials'.")
+    print("!" * 50 + "\n")
+
+# --- BRIDGE HANDLER ---
 class BridgeHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self, debug=True):
         # 1. Handle Favicon specifically to stop 404s
@@ -108,8 +137,49 @@ class BridgeHandler(http.server.SimpleHTTPRequestHandler):
         return super().do_GET()
 
     def do_POST(self):
-        #1. Handle Bot Synthesis Endpoint
-        if self.path == '/api/bot-chat':
+        # 1. JVM SPECIFIC ENDPOINT
+        if self.path == '/api/analyze-jvm':
+            try:
+                content_length = int(self.headers.get('Content-Length', 0))
+                raw_log = self.rfile.read(content_length).decode('utf-8')
+
+                from jvm.advisor_jvm import JVMAdvisor
+                expert = JVMAdvisor(raw_log)
+                report_tree = expert.analyze()
+
+                summary = {}
+                for section in report_tree.values():
+                    if isinstance(section, dict) and "Crit" in section:
+                        crit = section["Crit"].upper()
+                        summary[crit] = summary.get(crit, 0) + 1
+
+                response_data = {
+                    "metadata": {
+                        "generated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "summary": summary,
+                        "isJVM": True
+                    },
+                    "results": [report_tree]
+                }
+
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps(response_data).encode())
+            except Exception as e:
+                print(f"❌ JVM API Error: {str(e)}")
+                self.send_response(200) 
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "metadata": {"summary": {}, "isJVM": True, "error": True},
+                    "results": [],
+                    "error_msg": str(e)
+                }).encode())
+
+        # 2. BOT SYNTHESIS ENDPOINT
+        elif self.path == '/api/bot-chat':
             # 1. THE GUARD: Check environment before doing anything else
                 required_keys = ["MODEL_API", "MODEL_ID", "USER_KEY"]
                 if not all(os.getenv(k) for k in required_keys):

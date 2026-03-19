@@ -1,0 +1,42 @@
+# JVM Diagnostic Rules - Strict Note Mapping
+# --- Branch: Container_cgroup_information ---
+cgroup_env:
+  v1:
+    condition: "cg_type == 'cgroupv1'"
+    message: "cgroups v1"
+  v2:
+    condition: "cg_type == 'cgroupv2'"
+    message: "cgroups v2"
+  none:
+    condition: "cg_type == 'N/A' or not cg_type"
+    message: "not detected"
+
+# --- Branch: Memory_Analysis (A/B Percentage) ---
+memory_ratios:
+  old_run_java:
+    condition: "pcnt == 50"
+    message: "50%: run-java.sh old openjdk images"
+  new_run_java:
+    condition: "pcnt == 80"
+    message: "80%: run-java.sh new openjdk image"
+  no_run_java:
+    condition: "pcnt == 25"
+    message: "25%: default OpenJDK, not using run-java.sh new openjdk image"
+  custom_val:
+    condition: "pcnt not in [25, 50, 80]"
+    message: "{pcnt}%: custom - setting a custom value"
+
+# --- Branch: container_cgroup_information (CPU) ---
+cpu_logic:
+  under_scaled_gc:
+    condition: "cores >= 2 and workers == 1"
+    message: "⚠️ CPU Under-utilization: {cores} cores available but only 1 GC worker."
+  
+# --- Branch: Metaspace_and_Class_Space ---
+metaspace_logic:
+  high_metaspace_usage:
+    condition: "metaspace_used > 150"
+    message: "High Metaspace usage: {metaspace_used}M. Check for classloader leaks."
+  metaspace_optimal:
+    condition: "metaspace_used <= 150"
+    message: "Metaspace usage is within normal bounds."

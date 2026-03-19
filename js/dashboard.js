@@ -1,5 +1,5 @@
 window.onload = function() {
-    console.log("DRC Advisor v2.3 Initializing... System Nominal.");
+    console.log("DRC Advisor v2.4 Initializing... System Nominal.");
 
     // ==========================================
     // 1. DOM ELEMENT MAPPING
@@ -55,7 +55,7 @@ window.onload = function() {
     let isExternalReport = reportViewToggle ? reportViewToggle.checked : false;
 
     // ==========================================
-    // 3. ADVISOR BOT LOGIC (v2.3 Charizard)
+    // 3. ADVISOR BOT LOGIC (v2.4 Charizard)
     // ==========================================
     const toggleBot = () => {
         if (!botPanel) return;
@@ -254,7 +254,12 @@ window.onload = function() {
 
         try {
             const fileContent = await file.text();
-            const response = await fetch('/api/analyze', {
+            
+            // --- THE TOGGLE: Automatic JVM Sniffing ---
+            const isJVM = fileContent.includes("# JRE version:");
+            const endpoint = isJVM ? '/api/analyze-jvm' : '/api/analyze';
+
+            const response = await fetch(endpoint, {
                 method: 'POST',
                 body: fileContent,
                 headers: {
@@ -267,8 +272,11 @@ window.onload = function() {
             if (!response.ok) throw new Error(`Server Error: ${await response.text()}`);
             const data = await response.json();
 
+            // Tag data with type for renderer
+            if (data.metadata) data.metadata.isJVM = isJVM;
+
             sessionStorage.setItem('drc_report_data', JSON.stringify(data));
-            console.log("Analysis Context Locked to Session Storage.");
+            console.log(`Analysis Context Locked (${isJVM ? 'JVM' : 'OCP'}).`);
 
             if (isExternalReport) {
                 const reportWindow = window.open('report.html', 'DRC_Report', 'width=1100,height=900,scrollbars=yes');
@@ -323,43 +331,76 @@ window.onload = function() {
             renderHistogram(data.metadata.summary);
         }
 
-        const sourceData = Array.isArray(data) ? data : (data.results || []);
+        // Handle JVM Tree Rendering
+        if (data.metadata && data.metadata.isJVM) {
+            const tree = data.results[0];
+            const summaryTitle = document.createElement('h3');
+            summaryTitle.className = 'section-title';
+            summaryTitle.innerText = "JVM RUNTIME REVIEW";
+            clusterList.appendChild(summaryTitle);
 
-        const summaryTitle = document.createElement('h3');
-        summaryTitle.className = 'section-title';
-        summaryTitle.innerText = "ANALYSIS SUMMARY";
-        clusterList.appendChild(summaryTitle);
+            for (const [section, content] of Object.entries(tree)) {
+                if (section === "Summary") continue;
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.style.flexDirection = 'column';
+                card.style.alignItems = 'flex-start';
 
-        sourceData.forEach(res => {
-            if (res.findings) {
-                res.findings.forEach(f => {
-                    const card = document.createElement('div');
-                    card.className = 'card';
-                    const dot = document.createElement('div');
-                    dot.className = 'dot';
-                    
-                    const severity = f.crit ? f.crit.toUpperCase() : 'NOTICE';
-                    if (severity === 'CRITICAL') dot.style.background = '#e60000';
-                    else if (severity === 'IMPORTANT' || severity === 'ERROR') dot.style.background = '#ff8c00';
-                    else if (severity === 'WARNING') dot.style.background = '#007bff';
-                    else dot.style.background = '#28a745';
-
-                    const text = document.createElement('div');
-                    text.className = 'card-text';
-                    let cleanRef = (f.ref || '').replace('NOTICE: ', '').replace(/_/g, ' ');
-
-                    const kcsPattern = /(KCS|KB)\s*(\d+)/gi;
-                    const linkedRef = cleanRef.replace(kcsPattern, (match, type, id) => {
-                        return `<a href="https://access.redhat.com/solutions/${id}" target="_blank" style="color: #005fba; text-decoration: underline; font-weight: bold;">${match}</a>`;
-                    });
-
-                    text.innerHTML = `<strong>${res.name.toUpperCase()}:</strong> ${linkedRef}`;
-                    card.appendChild(dot);
-                    card.appendChild(text);
-                    clusterList.appendChild(card);
-                });
+                let html = `<strong style="color: #ee0000; border-bottom: 1px solid #ccc; width: 100%; margin-bottom: 10px; display: block;">${section.replace(/_/g, ' ').toUpperCase()}</strong><ul style="list-style: none; padding: 0; width: 100%;">`;
+                
+                for (const [key, val] of Object.entries(content)) {
+                    if (key === "Note" && val) {
+                        const crit = (content.Crit || 'NOTICE').toUpperCase();
+                        const color = crit === 'CRITICAL' ? '#e60000' : (crit === 'WARNING' ? '#007bff' : '#28a745');
+                        html += `<li style="background: rgba(0,0,0,0.05); padding: 8px; border-left: 4px solid ${color}; margin: 5px 0;"><strong>ADVICE:</strong> ${val}</li>`;
+                    } else if (key !== "Crit") {
+                        html += `<li style="font-size: 0.9em; margin: 3px 0;"><strong>${key.replace(/_/g, ' ')}:</strong> ${val}</li>`;
+                    }
+                }
+                html += `</ul>`;
+                card.innerHTML = html;
+                clusterList.appendChild(card);
             }
-        });
+        } 
+        // Handle Standard OCP Findings Rendering
+        else {
+            const sourceData = Array.isArray(data) ? data : (data.results || []);
+            const summaryTitle = document.createElement('h3');
+            summaryTitle.className = 'section-title';
+            summaryTitle.innerText = "ANALYSIS SUMMARY";
+            clusterList.appendChild(summaryTitle);
+
+            sourceData.forEach(res => {
+                if (res.findings) {
+                    res.findings.forEach(f => {
+                        const card = document.createElement('div');
+                        card.className = 'card';
+                        const dot = document.createElement('div');
+                        dot.className = 'dot';
+                        
+                        const severity = f.crit ? f.crit.toUpperCase() : 'NOTICE';
+                        if (severity === 'CRITICAL') dot.style.background = '#e60000';
+                        else if (severity === 'IMPORTANT' || severity === 'ERROR') dot.style.background = '#ff8c00';
+                        else if (severity === 'WARNING') dot.style.background = '#007bff';
+                        else dot.style.background = '#28a745';
+
+                        const text = document.createElement('div');
+                        text.className = 'card-text';
+                        let cleanRef = (f.ref || '').replace('NOTICE: ', '').replace(/_/g, ' ');
+
+                        const kcsPattern = /(KCS|KB)\s*(\d+)/gi;
+                        const linkedRef = cleanRef.replace(kcsPattern, (match, type, id) => {
+                            return `<a href="https://access.redhat.com/solutions/${id}" target="_blank" style="color: #005fba; text-decoration: underline; font-weight: bold;">${match}</a>`;
+                        });
+
+                        text.innerHTML = `<strong>${res.name.toUpperCase()}:</strong> ${linkedRef}`;
+                        card.appendChild(dot);
+                        card.appendChild(text);
+                        clusterList.appendChild(card);
+                    });
+                }
+            });
+        }
 
         const rawTitle = document.createElement('h3');
         rawTitle.className = 'section-title';

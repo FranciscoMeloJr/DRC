@@ -1,4 +1,4 @@
-### DRC v2.2 - March 16 th
+### DRC v2.4 - March 18th
 FROM registry.redhat.io/ubi9/python-39:latest
 
 # 1. Switch to root to handle system-level directory setup
@@ -10,8 +10,9 @@ WORKDIR /opt/drc
 # 3. Copy the entire tree from your local DRC folder
 COPY . .
 
-# 4. Install PyYAML (which provides the 'yaml' module)
+# 4. Install PyYAML and requests
 RUN pip install --no-cache-dir PyYAML
+RUN pip install --no-cache-dir requests
 
 # 5. Fix permissions for the UBI default user (1001) and root group (0)
 RUN chown -R 1001:0 /opt/drc
