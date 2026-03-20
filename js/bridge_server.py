@@ -22,6 +22,8 @@ if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
 target_engine = os.path.join(parent_dir, 'advisor_engine.py')
+target_simulator = os.path.join(parent_dir, 'simulator.py')
+
 print(f"Checking Engine: {target_engine} | Exists: {os.path.exists(target_engine)}")
 print("--- 🏁 END DEBUG ---\n")
 
@@ -50,6 +52,7 @@ print(f"✅ Environment Verified. Listening on Port: {PORT}")
 from agent.agent import chat_with_tools
 try:
     from advisor_engine import DRCAdvisor
+    from simulator.simulator import run_dry_run
     print("🚀 SUCCESS: Advisor Engine ready.")
 except ImportError as e:
     print(f"💥 IMPORT FAILED: {e}")
@@ -261,9 +264,68 @@ class BridgeHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header('Content-type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps(response_data).encode())
+
+        # 3. COMPARATOR ENDPOINT (v2.5)
+        elif self.path == '/api/comparator':
+            try:
+                content_length = int(self.headers.get('Content-Length', 0))
+                post_data = self.rfile.read(content_length).decode('utf-8')
+                payload = json.loads(post_data)
+
+                content_a = payload.get("file_a", "")
+                content_b = payload.get("file_b", "")
+
+                def analyze_any(content):
+                    """Helper to sniff content type and run the correct engine"""
+                    if "# JRE version:" in content:
+                        from jvm.advisor_jvm import JVMAdvisor
+                        return JVMAdvisor(content).analyze()
+                    else:
+                        from advisor_engine import DRCAdvisor
+                        engine = DRCAdvisor()
+                        engine.load_content(content)
+                        # OCP engine returns a list of results; we take the first for the tree
+                        results = engine.analyze()
+                        return results[0] if results else {}
+
+                # Run analysis on both
+                tree_a = analyze_any(content_a)
+                tree_b = analyze_any(content_b)
+
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                
+                self.wfile.write(json.dumps({
+                    "source": tree_a,
+                    "target": tree_b
+                }).encode())
+
+            except Exception as e:
+                print(f"❌ Comparator Error: {e}")
+                self.send_error(500, str(e))
+        # 4. SIMULATOR / DEPLOYER ENDPOINT
+        elif self.path == '/api/simulate-deploy':
+            content_length = int(self.headers.get('Content-Length', 0))
+            yaml_data = self.rfile.read(content_length).decode('utf-8')
+
+            # Extract Token and Server from Headers
+            t = self.headers.get('X-OCP-Token')
+            s = self.headers.get('X-OCP-Server')
+
+            # Pass to simulator.py (Note: 'token' instead of 'pw')
+            result = run_dry_run(yaml_data, token=t, server=s)
+
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(result).encode())
+
         else:
             # Instead of calling super(), we send a proper 404 error
             self.send_error(404, "Endpoint not found")
+
 
     def translate_path(self, path):
         # Ensure the server looks for files inside the /js directory
@@ -278,7 +340,7 @@ class BridgeHandler(http.server.SimpleHTTPRequestHandler):
             if not results:
                 return "I haven't seen any analysis results yet. Please upload a YAML/XML first! o/"
 
-            report = "### 🤖 DRC ADVISOR SYNTHESIS (v2.3 Charizard)\n"
+            report = "### 🤖 DRC ADVISOR SYNTHESIS (v2.5 Ninetails)\n"
             report += "--------------------------------------------------\n"
             
             found_data = False

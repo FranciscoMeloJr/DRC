@@ -1,5 +1,5 @@
 window.onload = function() {
-    console.log("DRC Advisor v2.4 Initializing... System Nominal.");
+    console.log("DRC Advisor v2.5 Initializing... System Nominal.");
 
     // ==========================================
     // 1. DOM ELEMENT MAPPING
@@ -55,7 +55,7 @@ window.onload = function() {
     let isExternalReport = reportViewToggle ? reportViewToggle.checked : false;
 
     // ==========================================
-    // 3. ADVISOR BOT LOGIC (v2.4 Charizard)
+    // 3. ADVISOR BOT LOGIC (v2.5 Ninetails)
     // ==========================================
     const toggleBot = () => {
         if (!botPanel) return;
@@ -201,12 +201,43 @@ window.onload = function() {
         };
     }
 
-    if (profileSelect) {
-        profileSelect.onchange = function() {
-            currentProfile = this.value;
-            console.log("Active Profile:", currentProfile);
-        };
-    }
+    // ==========================================
+        // 5. DOCK CONTROLS (v2.5 Refined)
+        // ==========================================
+        if (profileSelect) {
+                    profileSelect.onchange = function() {
+                        currentProfile = this.value; // 'Review', 'Comparator', 'Simulate'
+                        console.log("Mode Switched:", currentProfile);
+
+                        // 1. Grab all UI containers
+                        const mainDrop = document.getElementById('drop-zone');
+                        const dualDrop = document.getElementById('dual-drop-container');
+                        const simContainer = document.getElementById('simulator-container');
+                        const dashboard = document.getElementById('dashboard');
+                        const clusterList = document.getElementById('cluster-list');
+
+                        // 2. THE CLEAN SWEEP: Hide everything and clear old results
+                        if (mainDrop) mainDrop.style.display = 'none';
+                        if (dualDrop) dualDrop.style.display = 'none';
+                        if (simContainer) simContainer.style.display = 'none';
+                        if (dashboard) dashboard.style.display = 'none';
+                        if (clusterList) clusterList.innerHTML = "";
+
+                        // 3. THE ROUTER: Turn on the lights for the selected mode
+                        if (currentProfile === 'Comparator') {
+                            if (dualDrop) dualDrop.style.display = 'flex';
+                            if (typeof Comparator !== 'undefined') Comparator.reset();
+                        } 
+                        else if (currentProfile === 'Simulate') {
+                            if (simContainer) simContainer.style.display = 'flex';
+                            if (typeof Simulator !== 'undefined') Simulator.init();
+                        } 
+                        else {
+                            // Default to Standard Reviewer
+                            if (mainDrop) mainDrop.style.display = 'block';
+                        }
+                    };
+                }
 
     if (kcsListBtn) kcsListBtn.onclick = () => window.open('https://access.redhat.com/solutions', '_blank');
 

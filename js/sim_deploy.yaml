@@ -1,0 +1,11 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: example-infinispan
+  namespace: openshift-mta
+spec:
+  container:
+    extraJvmOpts: '-XX:+UseG1GC'
+    cpu: '100'
+    memory: '100Gi'
+  replicas: 1

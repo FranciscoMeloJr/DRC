@@ -1,4 +1,4 @@
-### DRC v2.4 - March 18th
+### DRC v2.5 Ninetails - March 19th
 FROM registry.redhat.io/ubi9/python-39:latest
 
 # 1. Switch to root to handle system-level directory setup
