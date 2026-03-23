@@ -1,11 +1,14 @@
 import re
 import yaml
 import os
+# We use 'rules.registry' because 'drc' is the root in sys.path
+from rules import registry
 
 class JVMAdvisor:
     def __init__(self, raw_text):
         self.raw_text = raw_text
-        self.rules = self._load_rules()
+        # Line 12 Logic: Use the Registry to get live rules
+        self.rules = registry.get_rules("jvm-rules.yaml")
 
     def _load_rules(self):
         base_path = os.path.dirname(os.path.abspath(__file__))

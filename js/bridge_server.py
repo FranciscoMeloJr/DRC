@@ -141,7 +141,7 @@ class BridgeHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_POST(self):
         # 1. JVM SPECIFIC ENDPOINT
-        if self.path == '/api/analyze-jvm-info':
+        if self.path in ['/api/analyze-jvm', '/api/analyze-jvm-info']:
             try:
                 content_length = int(self.headers.get('Content-Length', 0))
                 raw_log = self.rfile.read(content_length).decode('utf-8')
