@@ -1,5 +1,48 @@
 # JVM Diagnostic Rules - Strict Note Mapping
 # --- Branch: Container_cgroup_information ---
+
+# DRC Advisor v2.6 - JVM Check-up Rule Tree
+vm_info_root:
+  system_checks:
+    rhel_os_compliance:
+      condition: "OS contains 'Red Hat Enterprise Linux release 8'"
+      sub_rules:
+        thp_settings:
+          condition: "THP == 'always' && Defrag == 'madvise'"
+          crit: "WARNING"
+          msg: "Performance Contention: THP 'always' on RHEL 8 can cause stall events. Recommended: 'madvise'."
+    
+    hugepage_alignment:
+      condition: "AnonHugePages > 0"
+      sub_rules:
+        jvm_large_page_support:
+          condition: "Large Page Support == 'Disabled'"
+          crit: "CRITICAL"
+          msg: "System has HugePages allocated but JVM is not using them. Enable -XX:+UseLargePages."
+
+  runtime_checks:
+    container_awareness:
+      condition: "active_processor_count < CPUs_total"
+      sub_rules:
+        single_core_bottleneck:
+          condition: "active_processor_count == 1"
+          crit: "WARNING"
+          msg: "JVM is constrained to a single core. G1GC and JIT compilation performance will be severely degraded."
+    
+    memory_utilization:
+      condition: "MaxRAMPercentage > 0"
+      sub_rules:
+        pre_touch_validation:
+          condition: "Pre-touch == 'Disabled' && HeapMaxCapacity > 1024"
+          crit: "NOTICE"
+          msg: "Large heap detected without Pre-Touch. Expect latency spikes during initial page commitment."
+
+  agent_inspections:
+    dynatrace_overhead:
+      condition: "jvm_args contains 'oneagentjava'"
+      crit: "NOTICE"
+      msg: "OneAgent Active: Monitor CodeHeap 'non-nmethods' usage for instrumentation overhead."
+
 cgroup_env:
   v1:
     condition: "cg_type == 'cgroupv1'"

@@ -1,0 +1,47 @@
+Full thread dump OpenJDK 64-Bit Server VM (17.0.14+7-LTS mixed mode, tiered):
+
+Threads class SMR info:
+_java_thread_list=0x00007f8964002710, length=2, elements={
+0x00007f89c4012000, 0x00007f89c4013800
+}
+
+"example-Data-Sync-Thread-1" #21 prio=5 os_prio=0 cpu=12.45ms elapsed=120.12s tid=0x00007f89c4012000 nid=0x1a03 waiting on condition  [0x00007f89a1dfd000]
+   java.lang.Thread.State: BLOCKED (on object monitor)
+	at com.example.storage.Manager.sync(Manager.java:42)
+	- waiting to lock <0x000000008cc00000> (a java.lang.Object)
+	- locked <0x000000008ccfffff> (a java.lang.Object)
+	at com.example.Worker.run(Worker.java:12)
+
+"example-Database-Writer-2" #22 prio=5 os_prio=0 cpu=8.12ms elapsed=118.45s tid=0x00007f89c4013800 nid=0x1b04 waiting on condition  [0x00007f89a1cfe000]
+   java.lang.Thread.State: BLOCKED (on object monitor)
+	at com.example.db.Writer.commit(Writer.java:88)
+	- waiting to lock <0x000000008ccfffff> (a java.lang.Object)
+	- locked <0x000000008cc00000> (a java.lang.Object)
+	at java.lang.Thread.run(java.base@17.0.14/Thread.java:833)
+
+"Signal Dispatcher" #4 daemon prio=9 os_prio=0 cpu=0.22ms elapsed=1530.92s tid=0x00007f89c400a000 nid=0x1c05 runnable [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+JNI global references: 15
+
+Found one Java-level deadlock:
+=============================
+"example-Data-Sync-Thread-1":
+  waiting to lock monitor 0x00007f89640028e0 (object 0x000000008cc00000, a java.lang.Object),
+  which is held by "example-Database-Writer-2"
+"example-Database-Writer-2":
+  waiting to lock monitor 0x00007f89640029c0 (object 0x000000008ccfffff, a java.lang.Object),
+  which is held by "example-Data-Sync-Thread-1"
+
+Java stack information for the threads listed above:
+===================================================
+"example-Data-Sync-Thread-1":
+	at com.example.storage.Manager.sync(Manager.java:42)
+	- waiting to lock <0x000000008cc00000> (a java.lang.Object)
+	- locked <0x000000008ccfffff> (a java.lang.Object)
+"example-Database-Writer-2":
+	at com.example.db.Writer.commit(Writer.java:88)
+	- waiting to lock <0x000000008ccfffff> (a java.lang.Object)
+	- locked <0x000000008cc00000> (a java.lang.Object)
+
+Found 1 deadlock.

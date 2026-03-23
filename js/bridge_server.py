@@ -141,7 +141,7 @@ class BridgeHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_POST(self):
         # 1. JVM SPECIFIC ENDPOINT
-        if self.path == '/api/analyze-jvm':
+        if self.path == '/api/analyze-jvm-info':
             try:
                 content_length = int(self.headers.get('Content-Length', 0))
                 raw_log = self.rfile.read(content_length).decode('utf-8')
@@ -321,6 +321,25 @@ class BridgeHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header('Content-type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps(result).encode())
+
+        elif self.path == '/api/yatda-scan':
+            try:
+                content_length = int(self.headers.get('Content-Length', 0))
+                raw_data = self.rfile.read(content_length).decode('utf-8')
+
+                from jvm.yatda_wrapper import YATDAWrapper
+                engine = YATDAWrapper(raw_data)
+                result = engine.analyze()
+
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps(result).encode())
+
+            except Exception as e:
+                print(f"❌ YATDA Error: {e}")
+                self.send_error(500, str(e))
 
         else:
             # Instead of calling super(), we send a proper 404 error

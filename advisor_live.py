@@ -1,5 +1,5 @@
 import subprocess, sys, os, datetime
-from advisor_engine import InfinispanDRCAdvisor
+from advisor_engine import DRCAdvisor
 
 def run_live_audit():
     try:
@@ -10,7 +10,7 @@ def run_live_audit():
         print("\033[91m[!] Failed to connect to OpenShift. Run 'oc login' first.\033[0m")
         sys.exit(1)
 
-    engine = InfinispanDRCAdvisor()
+    engine = DRCAdvisor()
     engine.load_content(raw_yaml)
     results = engine.analyze()
 

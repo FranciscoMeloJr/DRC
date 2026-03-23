@@ -273,55 +273,74 @@ window.onload = function() {
 
     async function handleFile(file) {
         if (!file) return;
-        
-        const originalText = uploadBtn.innerText;
-        uploadBtn.innerText = "STREAMING TO BRIDGE...";
-        uploadBtn.disabled = true;
 
-        if (!isExternalReport) {
-            dashboard.style.display = 'block';
-            clusterList.innerHTML = '<div class="loading-box"><p style="color:white;">Analyzing binary stream...</p></div>';
-        }
-
-        try {
-            const fileContent = await file.text();
-            
-            // --- THE TOGGLE: Automatic JVM Sniffing ---
-            const isJVM = fileContent.includes("# JRE version:");
-            const endpoint = isJVM ? '/api/analyze-jvm' : '/api/analyze';
-
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                body: fileContent,
-                headers: {
-                    'X-DRC-Profile': currentProfile,
-                    'X-DRC-Eval-Undefined': isOnlineMode.toString(),
-                    'Content-Type': 'text/plain'
-                }
-            });
-
-            if (!response.ok) throw new Error(`Server Error: ${await response.text()}`);
-            const data = await response.json();
-
-            // Tag data with type for renderer
-            if (data.metadata) data.metadata.isJVM = isJVM;
-
-            sessionStorage.setItem('drc_report_data', JSON.stringify(data));
-            console.log(`Analysis Context Locked (${isJVM ? 'JVM' : 'OCP'}).`);
-
-            if (isExternalReport) {
-                const reportWindow = window.open('report.html', 'DRC_Report', 'width=1100,height=900,scrollbars=yes');
-                if (!reportWindow) alert("Popup blocked! Please allow popups.");
-            } else {
-                renderDashboard(data);
+            // 🛑 Guard: Check file size before streaming
+            if (file.size === 0) {
+                alert("⚠️ Cannot analyze an empty file. Please check your source.");
+                return;
             }
-        } catch (error) {
-            alert("Analysis Failed: " + error.message);
-        } finally {
-            uploadBtn.innerText = originalText;
-            uploadBtn.disabled = false;
+            
+            const originalText = uploadBtn.innerText;
+            uploadBtn.innerText = "STREAMING TO BRIDGE...";
+            uploadBtn.disabled = true;
+
+            if (!isExternalReport) {
+                dashboard.style.display = 'block';
+                clusterList.innerHTML = '<div class="loading-box"><p style="color:white;">Analyzing binary stream...</p></div>';
+            }
+
+            try {            
+                const fileContent = await file.text();
+
+                // --- 🔎 AUTOMATIC SNIFFING ---
+                const isJVMBase = fileContent.includes("# JRE version:");
+                const isVMInfo = fileContent.includes("---------------  S U M M A R Y ------------");
+                const isThreadDump = fileContent.includes('java.lang.Thread.State');
+
+                let endpoint;
+                if (isVMInfo) {
+                    endpoint = '/api/analyze-jvm-info';
+                } else if (isThreadDump) {
+                    endpoint = '/api/yatda-scan';
+                } else if (isJVMBase) {
+                    endpoint = '/api/analyze-jvm';
+                } else {
+                    endpoint = '/api/analyze';
+                }
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    body: fileContent,
+                    headers: {
+                        'X-DRC-Profile': currentProfile,
+                        'X-DRC-Eval-Undefined': isOnlineMode.toString(),
+                        'Content-Type': 'text/plain'
+                    }
+                });
+
+                if (!response.ok) throw new Error(`Server Error: ${await response.text()}`);
+                const data = await response.json();
+
+                // --- 🏷️ METADATA INJECTION ---
+                if (!data.metadata) data.metadata = {};
+                data.metadata.isJVM = isJVMBase || isVMInfo || isThreadDump; 
+                data.metadata.jvmSubtype = isVMInfo ? 'VMINFO' : (isThreadDump ? 'YATDA' : 'CRASH');
+
+                sessionStorage.setItem('drc_report_data', JSON.stringify(data));
+                
+                if (isExternalReport) {
+                    const reportWindow = window.open('report.html', 'DRC_Report', 'width=1100,height=900,scrollbars=yes');
+                    if (!reportWindow) alert("Popup blocked! Please allow popups.");
+                } else {
+                    renderDashboard(data);
+                }
+            } catch (error) {
+                alert("Analysis Failed: " + error.message);
+            } finally {
+                uploadBtn.innerText = originalText;
+                uploadBtn.disabled = false;
+            }
         }
-    }
 
     // ==========================================
     // 7. DASHBOARD & HISTOGRAM RENDERING
@@ -352,99 +371,138 @@ window.onload = function() {
     }
 
     function renderDashboard(data) {
-        dashboard.style.display = 'block';
-        clusterList.innerHTML = '';
-        
-        const oldHist = document.getElementById('drc-histogram');
-        if (oldHist) oldHist.innerHTML = ''; 
+            dashboard.style.display = 'block';
+            clusterList.innerHTML = '';
+            
+            const oldHist = document.getElementById('drc-histogram');
+            if (oldHist) oldHist.innerHTML = ''; 
 
-        if (data.metadata && data.metadata.summary) {
-            renderHistogram(data.metadata.summary);
-        }
-
-        // Handle JVM Tree Rendering
-        if (data.metadata && data.metadata.isJVM) {
-            const tree = data.results[0];
-            const summaryTitle = document.createElement('h3');
-            summaryTitle.className = 'section-title';
-            summaryTitle.innerText = "JVM RUNTIME REVIEW";
-            clusterList.appendChild(summaryTitle);
-
-            for (const [section, content] of Object.entries(tree)) {
-                if (section === "Summary") continue;
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.style.flexDirection = 'column';
-                card.style.alignItems = 'flex-start';
-
-                let html = `<strong style="color: #ee0000; border-bottom: 1px solid #ccc; width: 100%; margin-bottom: 10px; display: block;">${section.replace(/_/g, ' ').toUpperCase()}</strong><ul style="list-style: none; padding: 0; width: 100%;">`;
-                
-                for (const [key, val] of Object.entries(content)) {
-                    if (key === "Note" && val) {
-                        const crit = (content.Crit || 'NOTICE').toUpperCase();
-                        const color = crit === 'CRITICAL' ? '#e60000' : (crit === 'WARNING' ? '#007bff' : '#28a745');
-                        html += `<li style="background: rgba(0,0,0,0.05); padding: 8px; border-left: 4px solid ${color}; margin: 5px 0;"><strong>ADVICE:</strong> ${val}</li>`;
-                    } else if (key !== "Crit") {
-                        html += `<li style="font-size: 0.9em; margin: 3px 0;"><strong>${key.replace(/_/g, ' ')}:</strong> ${val}</li>`;
-                    }
-                }
-                html += `</ul>`;
-                card.innerHTML = html;
-                clusterList.appendChild(card);
+            // 1. ORIGINAL HISTOGRAM LOGIC (Unchanged)
+            if (data.metadata && data.metadata.summary) {
+                renderHistogram(data.metadata.summary);
             }
-        } 
-        // Handle Standard OCP Findings Rendering
-        else {
-            const sourceData = Array.isArray(data) ? data : (data.results || []);
-            const summaryTitle = document.createElement('h3');
-            summaryTitle.className = 'section-title';
-            summaryTitle.innerText = "ANALYSIS SUMMARY";
-            clusterList.appendChild(summaryTitle);
 
-            sourceData.forEach(res => {
-                if (res.findings) {
-                    res.findings.forEach(f => {
-                        const card = document.createElement('div');
-                        card.className = 'card';
-                        const dot = document.createElement('div');
-                        dot.className = 'dot';
-                        
-                        const severity = f.crit ? f.crit.toUpperCase() : 'NOTICE';
-                        if (severity === 'CRITICAL') dot.style.background = '#e60000';
-                        else if (severity === 'IMPORTANT' || severity === 'ERROR') dot.style.background = '#ff8c00';
-                        else if (severity === 'WARNING') dot.style.background = '#007bff';
-                        else dot.style.background = '#28a745';
+            // 2. NEW: YATDA TERMINAL RENDERER (Inserted)
+            if (data.metadata && data.metadata.jvmSubtype === 'YATDA') {
+                const summaryTitle = document.createElement('h3');
+                summaryTitle.className = 'section-title';
+                summaryTitle.innerHTML = "🧵 THREAD DUMP ANALYSIS (YATDA)";
+                clusterList.appendChild(summaryTitle);
 
-                        const text = document.createElement('div');
-                        text.className = 'card-text';
-                        let cleanRef = (f.ref || '').replace('NOTICE: ', '').replace(/_/g, ' ');
+                const consoleWrapper = document.createElement('div');
+                consoleWrapper.style.cssText = `margin: 20px 0; background: #0d0d0d; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #333;`;
 
-                        const kcsPattern = /(KCS|KB)\s*(\d+)/gi;
-                        const linkedRef = cleanRef.replace(kcsPattern, (match, type, id) => {
-                            return `<a href="https://access.redhat.com/solutions/${id}" target="_blank" style="color: #005fba; text-decoration: underline; font-weight: bold;">${match}</a>`;
-                        });
+                const consoleHeader = document.createElement('div');
+                consoleHeader.style.cssText = `background: #1a1a1a; padding: 10px 15px; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 8px;`;
+                consoleHeader.innerHTML = `
+                    <div style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f56;"></div>
+                    <div style="width: 12px; height: 12px; border-radius: 50%; background: #ffbd2e;"></div>
+                    <div style="width: 12px; height: 12px; border-radius: 50%; background: #27c93f;"></div>
+                    <span style="color: #888; font-family: sans-serif; font-size: 11px; margin-left: 10px; letter-spacing: 1px;">SYSTEM_DIAGNOSTIC_OUTPUT</span>
+                `;
 
-                        text.innerHTML = `<strong>${res.name.toUpperCase()}:</strong> ${linkedRef}`;
-                        card.appendChild(dot);
-                        card.appendChild(text);
-                        clusterList.appendChild(card);
-                    });
+                const terminal = document.createElement('div');
+                terminal.style.cssText = `color: #00ff41; padding: 20px; font-family: 'Fira Code', monospace; font-size: 13px; line-height: 1.6; white-space: pre-wrap; max-height: 500px; overflow-y: auto; background: #0d0d0d;`;
+                
+                let content = data.raw_output || "No YATDA output received.";
+                content = content.replace(/(BLOCKED|Deadlock|waiting to lock)/g, '<span style="color: #ff3e3e; font-weight: bold;">$1</span>');
+                content = content.replace(/(RUNNABLE|Total number)/g, '<span style="color: #ffffff; font-weight: bold;">$1</span>');
+                
+                terminal.innerHTML = content;
+                consoleWrapper.appendChild(consoleHeader);
+                consoleWrapper.appendChild(terminal);
+                clusterList.appendChild(consoleWrapper);
+                // We omit the raw data only for this terminal view as it's redundant here
+            } 
+            
+            // 3. ORIGINAL JVM TREE RENDERER (Unchanged)
+            else if (data.metadata && data.metadata.isJVM) {
+                const tree = Array.isArray(data.results) ? data.results[0] : (data.results || {});
+                const summaryTitle = document.createElement('h3');
+                summaryTitle.className = 'section-title';
+                summaryTitle.innerText = "JVM RUNTIME REVIEW";
+                clusterList.appendChild(summaryTitle);
+
+                for (const [section, content] of Object.entries(tree)) {
+                    if (section === "Summary" || section === "metadata") continue;
+                    const card = document.createElement('div');
+                    card.className = 'card jvm-card';
+                    card.style.flexDirection = 'column';
+                    card.style.alignItems = 'flex-start';
+
+                    let html = `<strong style="color: #ee0000; border-bottom: 1px solid #ccc; width: 100%; margin-bottom: 10px; display: block;">${section.replace(/_/g, ' ').toUpperCase()}</strong><ul style="list-style: none; padding: 0; width: 100%;">`;
+                    
+                    for (const [key, val] of Object.entries(content)) {
+                        if (key === "Note" && val) {
+                            const crit = (content.Crit || 'NOTICE').toUpperCase();
+                            const color = crit === 'CRITICAL' ? '#e60000' : (crit === 'WARNING' ? '#007bff' : '#28a745');
+                            html += `<li style="background: rgba(0,0,0,0.05); padding: 8px; border-left: 4px solid ${color}; margin: 5px 0;"><strong>ADVICE:</strong> ${val}</li>`;
+                        } else if (key !== "Crit") {
+                            html += `<li style="font-size: 0.9em; margin: 3px 0;"><strong>${key.replace(/_/g, ' ')}:</strong> ${val}</li>`;
+                        }
+                    }
+                    html += `</ul>`;
+                    card.innerHTML = html;
+                    clusterList.appendChild(card);
                 }
-            });
+                appendRawDataSection(data); // Call helper to show raw data
+            } 
+
+            // 4. ORIGINAL OCP RENDERER (Unchanged)
+            else {
+                const sourceData = Array.isArray(data) ? data : (data.results || []);
+                const summaryTitle = document.createElement('h3');
+                summaryTitle.className = 'section-title';
+                summaryTitle.innerText = "ANALYSIS SUMMARY";
+                clusterList.appendChild(summaryTitle);
+
+                sourceData.forEach(res => {
+                    if (res.findings) {
+                        res.findings.forEach(f => {
+                            const card = document.createElement('div');
+                            card.className = 'card';
+                            const dot = document.createElement('div');
+                            dot.className = 'dot';
+                            
+                            const severity = f.crit ? f.crit.toUpperCase() : 'NOTICE';
+                            if (severity === 'CRITICAL') dot.style.background = '#e60000';
+                            else if (severity === 'IMPORTANT' || severity === 'ERROR') dot.style.background = '#ff8c00';
+                            else if (severity === 'WARNING') dot.style.background = '#007bff';
+                            else dot.style.background = '#28a745';
+
+                            const text = document.createElement('div');
+                            text.className = 'card-text';
+                            let cleanRef = (f.ref || '').replace('NOTICE: ', '').replace(/_/g, ' ');
+
+                            const kcsPattern = /(KCS|KB)\s*(\d+)/gi;
+                            const linkedRef = cleanRef.replace(kcsPattern, (match, type, id) => {
+                                return `<a href="https://access.redhat.com/solutions/${id}" target="_blank" style="color: #005fba; text-decoration: underline; font-weight: bold;">${match}</a>`;
+                            });
+
+                            text.innerHTML = `<strong>${res.name.toUpperCase()}:</strong> ${linkedRef}`;
+                            card.appendChild(dot);
+                            card.appendChild(text);
+                            clusterList.appendChild(card);
+                        });
+                    }
+                });
+                appendRawDataSection(data); // Call helper to show raw data
+            }
         }
 
-        const rawTitle = document.createElement('h3');
-        rawTitle.className = 'section-title';
-        rawTitle.style.marginTop = "40px";
-        rawTitle.innerText = "RAW DETAILED DATA";
-        clusterList.appendChild(rawTitle);
+        // Helper Function to keep the "RAW DETAILED DATA" logic consistent
+        function appendRawDataSection(data) {
+            const rawTitle = document.createElement('h3');
+            rawTitle.className = 'section-title';
+            rawTitle.style.marginTop = "40px";
+            rawTitle.innerText = "RAW DETAILED DATA";
+            clusterList.appendChild(rawTitle);
 
-        const rawBox = document.createElement('pre');
-        rawBox.className = 'raw-box'; 
-        rawBox.innerText = JSON.stringify(data, null, 2);
-        clusterList.appendChild(rawBox);
-    }
-
+            const rawBox = document.createElement('pre');
+            rawBox.className = 'raw-box'; 
+            rawBox.innerText = JSON.stringify(data, null, 2);
+            clusterList.appendChild(rawBox);
+        }
     async function fetchRules() {
         const rulesContent = document.getElementById('rulesContent');
         if (!rulesContent) return;
