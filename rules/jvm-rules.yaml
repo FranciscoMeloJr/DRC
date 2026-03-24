@@ -1,6 +1,26 @@
 # JVM Diagnostic Rules - Strict Note Mapping
 # --- Branch: Container_cgroup_information ---
 
+template_rules:
+  # Check if JVM is the Container Root
+  PID_1_CHECK:
+    condition: "pid == 1"
+    criticality: "INFO"
+    message: "Process is PID 1. High container awareness required."
+
+  # Ensure G1GC for modern RHEL/Data Grid environments
+  GC_REQUIREMENT:
+    condition: "not is_g1"
+    criticality: "WARNING"
+    message: "G1GC not detected in Template. Build: {version}."
+    recommendation: "G1GC is recommended for optimal Data Grid garbage collection."
+
+  # Check for Red Hat Build
+  VENDOR_VALIDATION:
+    condition: "not is_redhat"
+    criticality: "NOTICE"
+    message: "Non-Red Hat JRE detected: {version}."
+
 # DRC Advisor v2.6 - JVM Check-up Rule Tree
 vm_info_root:
   system_checks:

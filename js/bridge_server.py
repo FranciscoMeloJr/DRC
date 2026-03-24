@@ -137,6 +137,47 @@ class BridgeHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_error(500, str(e))
             return
 
+        # API Metadata
+        if self.path == '/api/metadata':
+            try:
+                print("metadata reached")
+                # Use absolute pathing to find the file next to this script
+                meta_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'metadata.json')
+                
+                with open(meta_path, 'r') as f:
+                    data = json.load(f)
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*') # Essential for JS
+                self.end_headers()
+                self.wfile.write(json.dumps(data).encode('utf-8'))
+                return # 🏁 STOP HERE. Do not let super().do_GET() run.
+            except Exception as e:
+                print(f"❌ Backend Metadata Error: {e}")
+                self.send_error(404, f"Metadata file not found: {e}")
+                return
+
+        
+        # 🎯 API ROUTE: Rules Status
+        if self.path == '/api/rules-status':
+            try:
+                from rules import registry
+                # Trigger a dummy call if last_sync is still default
+                if registry._audit_log["last_sync"] == "Initializing...":
+                    registry.get_rules("jvm-rules.yaml") 
+
+                data = registry.get_audit_data()
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps(data).encode('utf-8'))
+                return
+            except Exception as e:
+                self.send_error(500, str(e))
+                return
+
         return super().do_GET()
 
     def do_POST(self):

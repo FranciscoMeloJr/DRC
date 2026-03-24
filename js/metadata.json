@@ -1,0 +1,10 @@
+{
+    "version": "2.6 - Ninetails",
+    "features": [
+        "Live Rule Registry (GitHub Opt-in Sync)",
+        "Offline-First Fallback Architecture",
+        "Dynamic JVM Fact Extraction",
+        "Audit Log Tracking",
+        "AI-Powered Bot Synthesis"
+    ]
+}

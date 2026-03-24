@@ -1,4 +1,4 @@
-### DRC v2.5 Ninetails - March 19th
+### DRC v2.6 Ninetails - March 19th
 FROM registry.redhat.io/ubi9/python-39:latest
 
 # 1. Switch to root to handle system-level directory setup
@@ -30,4 +30,5 @@ USER 1001
 EXPOSE 8080
 
 # 10. Run the bridge script with unbuffered output
-CMD ["python", "-u", "js/bridge_server.py"]
+#CMD ["python", "-u", "js/bridge_server.py"]
+CMD ["./drc-start.sh"]

@@ -526,4 +526,50 @@ window.onload = function() {
             a.click();
         };
     }
+
+    async function updateAboutModal() {
+        try {
+            // 1. Fetch Dynamic Features & Version from metadata.json
+            const metaRes = await fetch('/api/metadata');
+            if (metaRes.ok) {
+                const metaData = await metaRes.json();
+                
+                // Update Version Line
+                const versionLabel = document.querySelector('#aboutModal p strong');
+                if (versionLabel && versionLabel.innerText.includes("Version")) {
+                    versionLabel.nextSibling.textContent = ` ${metaData.version}`;
+                }
+
+                // Populate Features
+                const list = document.getElementById('featureList');
+                if (list) {
+                    list.innerHTML = metaData.features.map(f => `<li>${f}</li>`).join('');
+                }
+            }
+
+            /*  2. Fetch Live Audit Log from the Registry */
+            const auditRes = await fetch('/api/rules-status');
+            if (auditRes.ok) {
+                const auditData = await auditRes.json();
+                
+                // Update Audit Spans
+                document.getElementById('syncSource').innerText = auditData.source;
+                document.getElementById('syncTime').innerText = auditData.last_sync;
+                
+                // Optional: Update status color or text if you have a status element
+                const statusEl = document.getElementById('syncStatus');
+                if (statusEl) statusEl.innerText = auditData.status;
+            } 
+
+        } catch (error) {
+            console.error("❌ Failed to load modal metadata:", error);
+            document.getElementById('syncSource').innerText = "Local Fallback";
+        }
+    }
+
+    // Hook into your existing modal open trigger
+    document.getElementById('aboutBtn').addEventListener('click', () => {
+        updateAboutModal();
+        document.getElementById('aboutModal').style.display = 'block';
+    });
 };
