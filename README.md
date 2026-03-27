@@ -1,5 +1,7 @@
 # DRC
 DRC is the parser for DG 8/Infinispan yamls aka CR/CRD - the name comes from there.
+However, more features were added: gc logs, thread dumps, VM.info, Infinispan/Cache CR review. Plus AI agent usage.
+
 Usage:::
 ~~~
 $ python advisor_ui.py test/expose.yaml 
